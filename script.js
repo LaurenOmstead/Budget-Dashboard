@@ -1,6 +1,5 @@
-const SUPABASE_URL = "https://lhbsgjsykcrskjgofiwf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxoYnNnanN5a2Nyc2tqZ29maXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1MTE1NTAsImV4cCI6MjA5NjA4NzU1MH0.FSa-4mDdm1EohmUSEmWsv2lJXMxV3DcpKwmgLGLBEOE";
-
+const SUPABASE_URL = "PASTE_YOUR_SUPABASE_PROJECT_URL_HERE";
+const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_KEY_HERE";
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -14,6 +13,11 @@ const DEFAULT_TARGETS = {
   Savings: 400,
   Other: 100
 };
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 
 let transactions = [];
 let targets = { ...DEFAULT_TARGETS };
@@ -30,7 +34,16 @@ const money = new Intl.NumberFormat("en-US", {
 });
 
 const statusBar = document.getElementById("statusBar");
+
+const viewMode = document.getElementById("viewMode");
+const monthControls = document.getElementById("monthControls");
+const weekControls = document.getElementById("weekControls");
+const yearControls = document.getElementById("yearControls");
+
 const monthSelect = document.getElementById("monthSelect");
+const yearSelect = document.getElementById("yearSelect");
+const weekPicker = document.getElementById("weekPicker");
+const yearOnlySelect = document.getElementById("yearOnlySelect");
 
 const totalIncomeEl = document.getElementById("totalIncome");
 const totalExpensesEl = document.getElementById("totalExpenses");
@@ -42,9 +55,13 @@ const itemName = document.getElementById("itemName");
 const itemType = document.getElementById("itemType");
 const itemCategory = document.getElementById("itemCategory");
 const itemAmount = document.getElementById("itemAmount");
+const itemDate = document.getElementById("itemDate");
 const itemPaid = document.getElementById("itemPaid");
 
 const targetForm = document.getElementById("targetForm");
+const targetNote = document.getElementById("targetNote");
+const targetChartNote = document.getElementById("targetChartNote");
+const saveTargetsBtn = document.getElementById("saveTargetsBtn");
 
 const targetInputs = {
   Housing: document.getElementById("targetHousing"),
@@ -60,95 +77,113 @@ const targetInputs = {
 const transactionRows = document.getElementById("transactionRows");
 const topExpenses = document.getElementById("topExpenses");
 const billList = document.getElementById("billList");
+const transactionScopeLabel = document.getElementById("transactionScopeLabel");
 
 const printBtn = document.getElementById("printBtn");
 const exportBtn = document.getElementById("exportBtn");
 const refreshBtn = document.getElementById("refreshBtn");
 
-startApp();
+document.addEventListener("DOMContentLoaded", init);
 
-async function startApp() {
-  console.log("script.js is running");
-
+async function init() {
   if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_ANON_KEY.includes("PASTE_")) {
-    showStatus("Supabase URL or anon key is missing in script.js.", "error");
-    alert("Supabase URL or anon key is missing in script.js.");
+    showStatus("Add your real Supabase URL and anon key in script.js.", "error");
     return;
   }
 
-  const missingElements = checkRequiredElements();
-
-  if (missingElements.length > 0) {
-    const message = "Missing HTML elements: " + missingElements.join(", ");
-    showStatus(message, "error");
-    alert(message);
-    return;
-  }
-
-  const savedMonth = localStorage.getItem("ghostBudgetSelectedMonth");
-
-  if (savedMonth) {
-    monthSelect.value = savedMonth;
-  }
-
+  populateYearSelects();
+  setDefaultScopeValues();
   bindEvents();
-
+  updateScopeControls();
+  updateTargetFormState();
   await loadEverything();
 }
 
-function checkRequiredElements() {
-  const required = {
-    statusBar,
-    monthSelect,
-    totalIncomeEl,
-    totalExpensesEl,
-    totalBillsEl,
-    availableBalanceEl,
-    transactionForm,
-    itemName,
-    itemType,
-    itemCategory,
-    itemAmount,
-    itemPaid,
-    targetForm,
-    transactionRows,
-    topExpenses,
-    billList,
-    printBtn,
-    exportBtn,
-    refreshBtn
-  };
+function populateYearSelects() {
+  const currentYear = new Date().getFullYear();
+  const startYear = currentYear - 3;
+  const endYear = currentYear + 5;
 
-  const missing = [];
+  yearSelect.innerHTML = "";
+  yearOnlySelect.innerHTML = "";
 
-  Object.entries(required).forEach(([name, element]) => {
-    if (!element) {
-      missing.push(name);
-    }
-  });
+  for (let year = startYear; year <= endYear; year += 1) {
+    const optionA = document.createElement("option");
+    optionA.value = String(year);
+    optionA.textContent = String(year);
+    yearSelect.appendChild(optionA);
 
-  Object.entries(targetInputs).forEach(([name, element]) => {
-    if (!element) {
-      missing.push("target" + name);
-    }
-  });
+    const optionB = document.createElement("option");
+    optionB.value = String(year);
+    optionB.textContent = String(year);
+    yearOnlySelect.appendChild(optionB);
+  }
+}
 
-  return missing;
+function setDefaultScopeValues() {
+  const now = new Date();
+
+  monthSelect.value = String(now.getMonth() + 1);
+  yearSelect.value = String(now.getFullYear());
+  yearOnlySelect.value = String(now.getFullYear());
+  weekPicker.value = getISOWeekInputValue(now);
+  itemDate.value = toISODate(now);
+
+  const savedView = localStorage.getItem("booGetViewMode");
+  const savedMonth = localStorage.getItem("booGetMonth");
+  const savedYear = localStorage.getItem("booGetYear");
+  const savedYearOnly = localStorage.getItem("booGetYearOnly");
+  const savedWeek = localStorage.getItem("booGetWeek");
+
+  if (savedView) viewMode.value = savedView;
+  if (savedMonth) monthSelect.value = savedMonth;
+  if (savedYear) yearSelect.value = savedYear;
+  if (savedYearOnly) yearOnlySelect.value = savedYearOnly;
+  if (savedWeek) weekPicker.value = savedWeek;
 }
 
 function bindEvents() {
-  transactionForm.addEventListener("submit", addTransaction);
-
-  targetForm.addEventListener("submit", saveTargets);
-
-  monthSelect.addEventListener("change", async () => {
-    localStorage.setItem("ghostBudgetSelectedMonth", monthSelect.value);
+  viewMode.addEventListener("change", async () => {
+    localStorage.setItem("booGetViewMode", viewMode.value);
+    updateScopeControls();
+    updateTargetFormState();
     await loadEverything();
   });
 
-  transactionRows.addEventListener("click", async event => {
+  monthSelect.addEventListener("change", async () => {
+    localStorage.setItem("booGetMonth", monthSelect.value);
+    await loadEverything();
+  });
+
+  yearSelect.addEventListener("change", async () => {
+    localStorage.setItem("booGetYear", yearSelect.value);
+    await loadEverything();
+  });
+
+  yearOnlySelect.addEventListener("change", async () => {
+    localStorage.setItem("booGetYearOnly", yearOnlySelect.value);
+    await loadEverything();
+  });
+
+  weekPicker.addEventListener("change", async () => {
+    localStorage.setItem("booGetWeek", weekPicker.value);
+    await loadEverything();
+  });
+
+  itemType.addEventListener("change", () => {
+    if (itemType.value === "income") {
+      itemCategory.value = "Income";
+      itemPaid.checked = true;
+    }
+  });
+
+  transactionForm.addEventListener("submit", addTransaction);
+  targetForm.addEventListener("submit", saveTargets);
+
+  transactionRows.addEventListener("click", async (event) => {
     if (event.target.classList.contains("delete-btn")) {
-      await deleteTransaction(event.target.dataset.id);
+      const id = event.target.dataset.id;
+      await deleteTransaction(id);
     }
   });
 
@@ -161,81 +196,225 @@ function bindEvents() {
   refreshBtn.addEventListener("click", async () => {
     await loadEverything();
   });
+}
 
-  itemType.addEventListener("change", () => {
-    if (itemType.value === "income") {
-      itemCategory.value = "Income";
-    }
+function updateScopeControls() {
+  monthControls.classList.add("hidden");
+  weekControls.classList.add("hidden");
+  yearControls.classList.add("hidden");
+
+  if (viewMode.value === "month") {
+    monthControls.classList.remove("hidden");
+  } else if (viewMode.value === "week") {
+    weekControls.classList.remove("hidden");
+  } else {
+    yearControls.classList.remove("hidden");
+  }
+}
+
+function updateTargetFormState() {
+  const isMonthView = viewMode.value === "month";
+  const inputs = Object.values(targetInputs);
+
+  inputs.forEach(input => {
+    input.disabled = !isMonthView;
   });
+
+  saveTargetsBtn.disabled = !isMonthView;
+
+  if (isMonthView) {
+    const monthName = MONTH_NAMES[Number(monthSelect.value) - 1];
+    targetNote.textContent = `Edit monthly targets for ${monthName} ${yearSelect.value}`;
+    targetChartNote.textContent = "Monthly targets compared to actuals";
+    targetForm.classList.remove("disabled-note");
+  } else if (viewMode.value === "week") {
+    targetNote.textContent = "Week view uses a weekly estimate based on the month’s target. Monthly editing is disabled here.";
+    targetChartNote.textContent = "Weekly actuals compared to estimated weekly targets";
+    targetForm.classList.add("disabled-note");
+  } else {
+    targetNote.textContent = "Year view combines monthly targets across the selected year. Monthly editing is disabled here.";
+    targetChartNote.textContent = "Year totals compared to yearly target totals";
+    targetForm.classList.add("disabled-note");
+  }
 }
 
 async function loadEverything() {
   showStatus("Loading dashboard...", "success");
 
-  await loadTargets();
-  await loadTransactions();
+  await loadTargetsForCurrentView();
+  await loadTransactionsForCurrentView();
 
   renderEverything();
 
-  showStatus("Dashboard loaded.", "success");
+  showStatus("Dashboard updated.", "success");
 
-  setTimeout(hideStatus, 1800);
+  setTimeout(() => {
+    hideStatus();
+  }, 1800);
 }
 
-async function loadTransactions() {
-  const selectedMonth = monthSelect.value;
+function getCurrentScopeLabel() {
+  if (viewMode.value === "month") {
+    const monthName = MONTH_NAMES[Number(monthSelect.value) - 1];
+    return `${monthName} ${yearSelect.value}`;
+  }
+
+  if (viewMode.value === "week") {
+    const { start, end } = getDateRangeForCurrentView();
+    return `${formatShortDate(start)} – ${formatShortDate(end)}`;
+  }
+
+  return yearOnlySelect.value;
+}
+
+function getDateRangeForCurrentView() {
+  if (viewMode.value === "month") {
+    const month = Number(monthSelect.value);
+    const year = Number(yearSelect.value);
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0);
+    return { start, end };
+  }
+
+  if (viewMode.value === "week") {
+    const start = getDateFromWeekInput(weekPicker.value);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { start, end };
+  }
+
+  const year = Number(yearOnlySelect.value);
+  const start = new Date(year, 0, 1);
+  const end = new Date(year, 11, 31);
+  return { start, end };
+}
+
+async function loadTransactionsForCurrentView() {
+  const { start, end } = getDateRangeForCurrentView();
 
   const { data, error } = await db
     .from("budget_transactions")
     .select("*")
-    .eq("item_month", selectedMonth)
+    .gte("item_date", toISODate(start))
+    .lte("item_date", toISODate(end))
+    .order("item_date", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Load transactions error:", error);
-    showStatus("Could not load transactions: " + error.message, "error");
-    alert("Could not load transactions: " + error.message);
+    console.error(error);
+    showStatus(`Could not load transactions: ${error.message}`, "error");
+    transactions = [];
     return;
   }
 
   transactions = data || [];
-  console.log("Loaded transactions:", transactions);
 }
 
-async function loadTargets() {
-  const selectedMonth = monthSelect.value;
-
-  const { data, error } = await db
-    .from("budget_targets")
-    .select("*")
-    .eq("item_month", selectedMonth);
-
-  if (error) {
-    console.error("Load targets error:", error);
-    showStatus("Could not load targets: " + error.message, "error");
-    targets = { ...DEFAULT_TARGETS };
-    fillTargetInputs();
-    return;
-  }
-
-  targets = { ...DEFAULT_TARGETS };
-
-  if (data && data.length > 0) {
-    data.forEach(row => {
-      targets[row.category] = Number(row.target_amount) || 0;
-    });
+async function loadTargetsForCurrentView() {
+  if (viewMode.value === "month") {
+    const month = Number(monthSelect.value);
+    const year = Number(yearSelect.value);
+    targets = await getMonthlyTargets(month, year);
+  } else if (viewMode.value === "week") {
+    const { start } = getDateRangeForCurrentView();
+    const month = start.getMonth() + 1;
+    const year = start.getFullYear();
+    const monthTargets = await getMonthlyTargets(month, year);
+    targets = prorateTargetsToWeek(monthTargets);
   } else {
-    await createDefaultTargetsForMonth(selectedMonth);
+    const year = Number(yearOnlySelect.value);
+    targets = await getYearlyTargets(year);
   }
 
   fillTargetInputs();
 }
 
-async function createDefaultTargetsForMonth(selectedMonth) {
+async function getMonthlyTargets(month, year) {
+  const { data, error } = await db
+    .from("budget_targets")
+    .select("*")
+    .eq("target_month", month)
+    .eq("target_year", year);
+
+  if (error) {
+    console.error(error);
+    showStatus(`Could not load targets: ${error.message}`, "error");
+    return { ...DEFAULT_TARGETS };
+  }
+
+  if (!data || data.length === 0) {
+    await createDefaultTargetsForMonth(month, year);
+
+    const retry = await db
+      .from("budget_targets")
+      .select("*")
+      .eq("target_month", month)
+      .eq("target_year", year);
+
+    if (retry.error) {
+      console.error(retry.error);
+      return { ...DEFAULT_TARGETS };
+    }
+
+    return rowsToTargetObject(retry.data || []);
+  }
+
+  return rowsToTargetObject(data);
+}
+
+async function getYearlyTargets(year) {
+  const { data, error } = await db
+    .from("budget_targets")
+    .select("*")
+    .eq("target_year", year);
+
+  if (error) {
+    console.error(error);
+    showStatus(`Could not load year targets: ${error.message}`, "error");
+
+    const fallback = {};
+    Object.entries(DEFAULT_TARGETS).forEach(([category, amount]) => {
+      fallback[category] = amount * 12;
+    });
+    return fallback;
+  }
+
+  const result = {};
+  Object.keys(DEFAULT_TARGETS).forEach(category => {
+    result[category] = 0;
+  });
+
+  const monthsPresent = new Set((data || []).map(row => row.target_month));
+  const missingMonthCount = 12 - monthsPresent.size;
+
+  (data || []).forEach(row => {
+    if (!result[row.category]) {
+      result[row.category] = 0;
+    }
+    result[row.category] += Number(row.target_amount) || 0;
+  });
+
+  Object.entries(DEFAULT_TARGETS).forEach(([category, amount]) => {
+    result[category] += amount * missingMonthCount;
+  });
+
+  return result;
+}
+
+function prorateTargetsToWeek(monthTargets) {
+  const weekly = {};
+  Object.entries(monthTargets).forEach(([category, amount]) => {
+    weekly[category] = Math.round(((Number(amount) * 12) / 52) * 100) / 100;
+  });
+  return weekly;
+}
+
+async function createDefaultTargetsForMonth(month, year) {
   const rows = Object.entries(DEFAULT_TARGETS).map(([category, amount]) => ({
     category,
     target_amount: amount,
-    item_month: selectedMonth
+    target_month: month,
+    target_year: year
   }));
 
   const { error } = await db
@@ -243,72 +422,104 @@ async function createDefaultTargetsForMonth(selectedMonth) {
     .insert(rows);
 
   if (error) {
-    console.error("Create default targets error:", error);
+    console.error(error);
   }
+}
+
+function rowsToTargetObject(rows) {
+  const obj = { ...DEFAULT_TARGETS };
+
+  rows.forEach(row => {
+    obj[row.category] = Number(row.target_amount) || 0;
+  });
+
+  return obj;
 }
 
 async function addTransaction(event) {
   event.preventDefault();
 
-  console.log("Add Item clicked");
-
-  const selectedMonth = monthSelect.value;
+  const name = itemName.value.trim();
   const type = itemType.value;
+  const category = type === "income" ? "Income" : itemCategory.value;
   const amount = Number(itemAmount.value);
+  const date = itemDate.value;
 
-  if (!itemName.value.trim()) {
-    alert("Please enter an item name.");
+  if (!name) {
+    showStatus("Please enter a name.", "error");
     return;
   }
 
   if (!amount || amount <= 0) {
-    alert("Please enter an amount greater than zero.");
+    showStatus("Please enter an amount greater than zero.", "error");
+    return;
+  }
+
+  if (!date) {
+    showStatus("Please choose a date.", "error");
     return;
   }
 
   const newItem = {
-    item_name: itemName.value.trim(),
+    item_name: name,
     item_type: type,
-    category: type === "income" ? "Income" : itemCategory.value,
-    amount: amount,
+    category,
+    amount,
     is_paid: type === "income" ? true : itemPaid.checked,
-    item_month: selectedMonth
+    item_date: date
   };
 
-  console.log("Trying to save:", newItem);
-  showStatus("Saving item...", "success");
-
-  const { data, error } = await db
+  const { error } = await db
     .from("budget_transactions")
-    .insert([newItem])
-    .select();
+    .insert([newItem]);
 
   if (error) {
-    console.error("Insert error:", error);
-    showStatus("Could not save item: " + error.message, "error");
-    alert("Could not save item: " + error.message);
+    console.error(error);
+    showStatus(`Could not save item: ${error.message}`, "error");
     return;
   }
-
-  console.log("Saved item:", data);
-
-  if (!data || data.length === 0) {
-    alert("Supabase did not return the saved item. Check table permissions/RLS policies.");
-    await loadEverything();
-    return;
-  }
-
-  transactions.unshift(data[0]);
 
   transactionForm.reset();
+  itemDate.value = toISODate(new Date());
   itemPaid.checked = true;
   itemCategory.value = "Income";
 
-  renderEverything();
+  await loadEverything();
+  showStatus("Item saved.", "success");
+}
 
-  showStatus("Item saved and dashboard updated.", "success");
+async function saveTargets(event) {
+  event.preventDefault();
 
-  setTimeout(hideStatus, 2000);
+  if (viewMode.value !== "month") {
+    showStatus("Targets can only be edited in month view.", "error");
+    return;
+  }
+
+  const month = Number(monthSelect.value);
+  const year = Number(yearSelect.value);
+
+  const rows = Object.entries(targetInputs).map(([category, input]) => ({
+    category,
+    target_amount: Number(input.value) || 0,
+    target_month: month,
+    target_year: year
+  }));
+
+  const { error } = await db
+    .from("budget_targets")
+    .upsert(rows, {
+      onConflict: "category,target_month,target_year"
+    });
+
+  if (error) {
+    console.error(error);
+    showStatus(`Could not save targets: ${error.message}`, "error");
+    return;
+  }
+
+  await loadEverything();
+  showStatus("Targets saved.", "success");
 }
 
 async function deleteTransaction(id) {
@@ -318,67 +529,25 @@ async function deleteTransaction(id) {
     .eq("id", id);
 
   if (error) {
-    console.error("Delete error:", error);
-    showStatus("Could not delete item: " + error.message, "error");
-    alert("Could not delete item: " + error.message);
+    console.error(error);
+    showStatus(`Could not delete item: ${error.message}`, "error");
     return;
   }
 
-  transactions = transactions.filter(item => item.id !== id);
-
-  renderEverything();
-
+  await loadEverything();
   showStatus("Item deleted.", "success");
-  setTimeout(hideStatus, 1600);
-}
-
-async function saveTargets(event) {
-  event.preventDefault();
-
-  const selectedMonth = monthSelect.value;
-
-  const rows = Object.entries(targetInputs).map(([category, input]) => ({
-    category,
-    target_amount: Number(input.value) || 0,
-    item_month: selectedMonth
-  }));
-
-  const { error } = await db
-    .from("budget_targets")
-    .upsert(rows, {
-      onConflict: "category,item_month"
-    });
-
-  if (error) {
-    console.error("Save targets error:", error);
-    showStatus("Could not save targets: " + error.message, "error");
-    alert("Could not save targets: " + error.message);
-    return;
-  }
-
-  rows.forEach(row => {
-    targets[row.category] = row.target_amount;
-  });
-
-  renderEverything();
-
-  showStatus("Budget targets saved.", "success");
-  setTimeout(hideStatus, 2000);
 }
 
 function renderEverything() {
-  console.log("Rendering dashboard with transactions:", transactions);
-
   renderSummary();
   renderTransactions();
   renderBills();
   renderTopExpenses();
+  renderCharts();
 
-  if (window.Chart) {
-    renderCharts();
-  } else {
-    console.warn("Chart.js is not loaded, skipping charts.");
-  }
+  const scopeLabel = getCurrentScopeLabel();
+  transactionScopeLabel.textContent = `Transactions for ${scopeLabel}`;
+  updateTargetFormState();
 }
 
 function getTotals() {
@@ -389,17 +558,9 @@ function getTotals() {
   transactions.forEach(item => {
     const amount = Number(item.amount) || 0;
 
-    if (item.item_type === "income") {
-      income += amount;
-    }
-
-    if (item.item_type === "expense") {
-      expenses += amount;
-    }
-
-    if (item.item_type === "bill") {
-      bills += amount;
-    }
+    if (item.item_type === "income") income += amount;
+    if (item.item_type === "expense") expenses += amount;
+    if (item.item_type === "bill") bills += amount;
   });
 
   return {
@@ -436,13 +597,11 @@ function renderSummary() {
   totalExpensesEl.textContent = money.format(totals.expenses);
   totalBillsEl.textContent = money.format(totals.bills);
   availableBalanceEl.textContent = money.format(totals.balance);
-
-  console.log("Totals:", totals);
 }
 
 function renderTransactions() {
   if (!transactions.length) {
-    transactionRows.innerHTML = `<p class="empty-message">No money ghosts added for this month yet.</p>`;
+    transactionRows.innerHTML = `<p class="empty-message">No transactions in this view yet. 👻</p>`;
     return;
   }
 
@@ -463,6 +622,7 @@ function renderTransactions() {
         <span><span class="badge badge-${escapeHTML(item.item_type)}">${escapeHTML(item.item_type)}</span></span>
         <span>${escapeHTML(item.category)}</span>
         <span>${money.format(Number(item.amount) || 0)}</span>
+        <span>${formatDisplayDate(item.item_date)}</span>
         <span><span class="badge ${statusClass}">${statusText}</span></span>
         <button class="delete-btn" type="button" data-id="${item.id}">Delete</button>
       </div>
@@ -474,16 +634,17 @@ function renderBills() {
   const bills = transactions.filter(item => item.item_type === "bill");
 
   if (!bills.length) {
-    billList.innerHTML = `<p class="empty-message">No bills added for this month yet.</p>`;
+    billList.innerHTML = `<p class="empty-message">No bills in this view. 🐈</p>`;
     return;
   }
 
   billList.innerHTML = bills.map(item => {
+    const status = item.is_paid ? "Paid" : "Unpaid";
     return `
       <div class="list-item">
         <div>
           <div class="list-title">${escapeHTML(item.item_name)}</div>
-          <div class="list-sub">${escapeHTML(item.category)}</div>
+          <div class="list-sub">${formatDisplayDate(item.item_date)} · ${status}</div>
         </div>
         <strong>${money.format(Number(item.amount) || 0)}</strong>
       </div>
@@ -493,13 +654,12 @@ function renderBills() {
 
 function renderTopExpenses() {
   const categoryTotals = getCategoryTotals();
-
   const rows = Object.entries(categoryTotals)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
 
   if (!rows.length) {
-    topExpenses.innerHTML = `<p class="empty-message">No expenses or bills added yet.</p>`;
+    topExpenses.innerHTML = `<p class="empty-message">No spending categories yet. 👻</p>`;
     return;
   }
 
@@ -508,7 +668,7 @@ function renderTopExpenses() {
       <div class="list-item">
         <div>
           <div class="list-title">${escapeHTML(category)}</div>
-          <div class="list-sub">Monthly spending</div>
+          <div class="list-sub">Tracked spending</div>
         </div>
         <strong>${money.format(amount)}</strong>
       </div>
@@ -517,6 +677,8 @@ function renderTopExpenses() {
 }
 
 function renderCharts() {
+  if (!window.Chart) return;
+
   const totals = getTotals();
   const categoryTotals = getCategoryTotals();
 
@@ -526,17 +688,6 @@ function renderCharts() {
 
   const expenseLabels = Object.keys(categoryTotals);
   const expenseValues = Object.values(categoryTotals);
-
-  const chartColors = [
-    "#40375f",
-    "#7465a8",
-    "#b8a8e8",
-    "#ffd7ef",
-    "#dce9ff",
-    "#dff8ef",
-    "#fff8ea",
-    "#9f91d9"
-  ];
 
   destroyCharts();
 
@@ -548,7 +699,7 @@ function renderCharts() {
         {
           label: "Amount",
           data: [totals.income, totals.bills, totals.expenses, totals.balance],
-          backgroundColor: ["#7465a8", "#b8a8e8", "#ffd7ef", "#dff8ef"],
+          backgroundColor: ["#0F7173", "#5D2A42", "#AF1B3F", "#417B5A"],
           borderRadius: 12
         }
       ]
@@ -563,7 +714,16 @@ function renderCharts() {
       datasets: [
         {
           data: expenseValues.length ? expenseValues : [1],
-          backgroundColor: chartColors,
+          backgroundColor: [
+            "#5D2A42",
+            "#AF1B3F",
+            "#0F7173",
+            "#417B5A",
+            "#320E3B",
+            "#d691a5",
+            "#7ba7a8",
+            "#c0a5b3"
+          ],
           borderWidth: 0
         }
       ]
@@ -583,7 +743,7 @@ function renderCharts() {
             categoryTotals.Savings || 0,
             Math.max(totals.balance, 0)
           ],
-          backgroundColor: ["#40375f", "#7465a8", "#b8a8e8", "#dff8ef"],
+          backgroundColor: ["#5D2A42", "#AF1B3F", "#0F7173", "#417B5A"],
           borderWidth: 0
         }
       ]
@@ -599,17 +759,17 @@ function renderCharts() {
         {
           label: "Actual",
           data: actualValues,
-          borderColor: "#40375f",
-          backgroundColor: "rgba(64, 55, 95, 0.12)",
-          tension: 0.35,
+          borderColor: "#AF1B3F",
+          backgroundColor: "rgba(175, 27, 63, 0.10)",
+          tension: 0.32,
           fill: true
         },
         {
-          label: "Budget",
+          label: "Target",
           data: targetValues,
-          borderColor: "#b8a8e8",
-          backgroundColor: "rgba(184, 168, 232, 0.12)",
-          tension: 0.35,
+          borderColor: "#0F7173",
+          backgroundColor: "rgba(15, 113, 115, 0.08)",
+          tension: 0.32,
           fill: true
         }
       ]
@@ -633,7 +793,7 @@ function chartOptions() {
     plugins: {
       legend: {
         labels: {
-          color: "#40375f",
+          color: "#320E3B",
           font: {
             weight: "700"
           }
@@ -643,7 +803,7 @@ function chartOptions() {
     scales: {
       x: {
         ticks: {
-          color: "#756f86"
+          color: "#6a4c5d"
         },
         grid: {
           display: false
@@ -651,10 +811,10 @@ function chartOptions() {
       },
       y: {
         ticks: {
-          color: "#756f86"
+          color: "#6a4c5d"
         },
         grid: {
-          color: "rgba(64, 55, 95, 0.08)"
+          color: "rgba(50, 14, 59, 0.08)"
         }
       }
     }
@@ -671,7 +831,7 @@ function doughnutOptions() {
       legend: {
         position: "bottom",
         labels: {
-          color: "#40375f",
+          color: "#320E3B",
           font: {
             weight: "700"
           },
@@ -695,15 +855,14 @@ function exportCSV() {
     return;
   }
 
-  const headers = ["Name", "Type", "Category", "Amount", "Paid", "Month"];
-
+  const headers = ["Name", "Type", "Category", "Amount", "Date", "Paid"];
   const rows = transactions.map(item => [
     item.item_name,
     item.item_type,
     item.category,
     item.amount,
-    item.is_paid ? "Yes" : "No",
-    item.item_month
+    item.item_date,
+    item.is_paid ? "Yes" : "No"
   ]);
 
   const csv = [headers, ...rows]
@@ -718,10 +877,66 @@ function exportCSV() {
   const link = document.createElement("a");
 
   link.href = url;
-  link.download = `boo-get-planner-${monthSelect.value}.csv`;
+  link.download = `boo-get-planner-${viewMode.value}-${getCurrentScopeLabel().replaceAll(" ", "-")}.csv`;
   link.click();
 
   URL.revokeObjectURL(url);
+}
+
+function toISODate(date) {
+  const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return adjusted.toISOString().split("T")[0];
+}
+
+function formatDisplayDate(dateString) {
+  const date = new Date(`${dateString}T00:00:00`);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
+function formatShortDate(date) {
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric"
+  });
+}
+
+function getISOWeekInputValue(date) {
+  const target = new Date(date.valueOf());
+  const dayNr = (date.getDay() + 6) % 7;
+  target.setDate(target.getDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setMonth(0, 1);
+  if (target.getDay() !== 4) {
+    target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+  }
+  const weekNumber = 1 + Math.ceil((firstThursday - target) / 604800000);
+  const year = new Date(firstThursday).getFullYear();
+  return `${year}-W${String(weekNumber).padStart(2, "0")}`;
+}
+
+function getDateFromWeekInput(value) {
+  const [yearPart, weekPart] = value.split("-W");
+  const year = Number(yearPart);
+  const week = Number(weekPart);
+
+  const simple = new Date(year, 0, 1 + (week - 1) * 7);
+  const dow = simple.getDay();
+  const ISOweekStart = new Date(simple);
+
+  if (dow <= 4 && dow !== 0) {
+    ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+  } else if (dow === 0) {
+    ISOweekStart.setDate(simple.getDate() - 6);
+  } else {
+    ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+  }
+
+  ISOweekStart.setHours(0, 0, 0, 0);
+  return ISOweekStart;
 }
 
 function showStatus(message, type = "success") {
