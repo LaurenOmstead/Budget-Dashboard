@@ -14,40 +14,42 @@
   <div class="app-shell">
 
     <header class="dashboard-header">
-      <div>
+      <div class="header-text">
         <p class="eyebrow">Cute Monthly Finance Tracker</p>
         <h1>Boo-get Planner Dashboard</h1>
-        <p class="subtitle">Track your income, bills, spending, savings, and spooky little money habits.</p>
+        <p class="subtitle">Track income, bills, spending, savings, and all your spooky little money habits.</p>
       </div>
 
-      <div class="month-card">
-        <span>Month</span>
-        <select id="monthSelect">
-          <option>January</option>
-          <option>February</option>
-          <option>March</option>
-          <option>April</option>
-          <option>May</option>
-          <option>June</option>
-          <option>July</option>
-          <option>August</option>
-          <option>September</option>
-          <option>October</option>
-          <option>November</option>
-          <option>December</option>
-        </select>
+      <div class="header-controls">
+        <div class="month-card">
+          <span>Month</span>
+          <select id="monthSelect">
+            <option>January</option>
+            <option>February</option>
+            <option>March</option>
+            <option>April</option>
+            <option>May</option>
+            <option>June</option>
+            <option>July</option>
+            <option>August</option>
+            <option>September</option>
+            <option>October</option>
+            <option>November</option>
+            <option>December</option>
+          </select>
+        </div>
+
+        <div class="dashboard-actions">
+          <button type="button" id="printDashboardBtn">Print</button>
+          <button type="button" id="exportCsvBtn">Export CSV</button>
+          <button type="button" id="resetDemoBtn" class="soft-button">Reset</button>
+        </div>
       </div>
     </header>
 
-    <div class="dashboard-actions">
-  <button type="button" id="printDashboardBtn">Print Dashboard</button>
-  <button type="button" id="exportCsvBtn">Export CSV</button>
-  <button type="button" id="resetDemoBtn" class="soft-button">Reset Demo</button>
-</div>
-    
     <main class="dashboard-grid">
 
-      <section class="summary-card ghost-card">
+      <section class="summary-card">
         <div class="ghost-icon">👻</div>
         <div>
           <p>Total Income</p>
@@ -55,7 +57,7 @@
         </div>
       </section>
 
-      <section class="summary-card ghost-card">
+      <section class="summary-card">
         <div class="ghost-icon">🕯️</div>
         <div>
           <p>Total Expenses</p>
@@ -63,15 +65,15 @@
         </div>
       </section>
 
-      <section class="summary-card ghost-card">
+      <section class="summary-card">
         <div class="ghost-icon">🧾</div>
         <div>
-          <p>Bills Due</p>
+          <p>Bills</p>
           <h2 id="billsDue">$0</h2>
         </div>
       </section>
 
-      <section class="summary-card ghost-card balance-card">
+      <section class="summary-card">
         <div class="ghost-icon">💜</div>
         <div>
           <p>Available Balance</p>
@@ -79,70 +81,128 @@
         </div>
       </section>
 
-      <section class="panel large-panel">
+      <section class="panel chart-panel panel-6">
         <div class="panel-header">
           <div>
             <h3>Cashflow Spirits</h3>
-            <p>Income vs expenses</p>
+            <p>Income, bills, expenses, and balance</p>
           </div>
-          <span class="pill">Monthly</span>
         </div>
-        <canvas id="cashflowChart"></canvas>
+        <div class="chart-box">
+          <canvas id="cashflowChart"></canvas>
+        </div>
       </section>
 
-      <section class="panel">
+      <section class="panel chart-panel panel-3">
         <div class="panel-header">
           <div>
             <h3>Spending Haunts</h3>
-            <p>Where your money floated away</p>
+            <p>Expense breakdown</p>
           </div>
         </div>
-        <canvas id="expenseChart"></canvas>
+        <div class="chart-box">
+          <canvas id="expenseChart"></canvas>
+        </div>
       </section>
 
-      <section class="panel">
+      <section class="panel chart-panel panel-3">
         <div class="panel-header">
           <div>
             <h3>Budget Potion</h3>
             <p>Allocation summary</p>
           </div>
         </div>
-        <canvas id="allocationChart"></canvas>
+        <div class="chart-box">
+          <canvas id="allocationChart"></canvas>
+        </div>
       </section>
 
-      <section class="panel wide-panel">
+      <section class="panel chart-panel panel-8">
         <div class="panel-header">
           <div>
             <h3>Actual vs Budget</h3>
-            <p>Compare planned spending against real spending</p>
+            <p>Planned spending compared to real spending</p>
           </div>
         </div>
-        <canvas id="budgetChart"></canvas>
+        <div class="chart-box short-chart">
+          <canvas id="budgetChart"></canvas>
+        </div>
       </section>
 
-      <section class="panel">
+      <section class="panel panel-4">
+        <div class="panel-header">
+          <div>
+            <h3>Highest Haunts</h3>
+            <p>Top spending categories</p>
+          </div>
+        </div>
+        <div class="top-expenses" id="topExpenses"></div>
+      </section>
+
+      <section class="panel panel-4">
         <div class="panel-header">
           <div>
             <h3>Bill Graveyard</h3>
             <p>Paid and unpaid bills</p>
           </div>
         </div>
-
         <div class="bill-list" id="billList"></div>
       </section>
 
-      <section class="panel">
+      <section class="panel panel-4">
         <div class="panel-header">
           <div>
-            <h3>Highest Haunts</h3>
-            <p>Top expense categories</p>
+            <h3>Budget Spellbook</h3>
+            <p>Edit monthly budget targets</p>
           </div>
         </div>
 
-        <div class="top-expenses" id="topExpenses"></div>
+        <form id="budgetTargetForm" class="budget-target-form">
+          <label>
+            Housing
+            <input type="number" id="budgetHousing" min="0" step="1" />
+          </label>
+
+          <label>
+            Food
+            <input type="number" id="budgetFood" min="0" step="1" />
+          </label>
+
+          <label>
+            Transportation
+            <input type="number" id="budgetTransportation" min="0" step="1" />
+          </label>
+
+          <label>
+            Personal
+            <input type="number" id="budgetPersonal" min="0" step="1" />
+          </label>
+
+          <label>
+            Healthcare
+            <input type="number" id="budgetHealthcare" min="0" step="1" />
+          </label>
+
+          <label>
+            Entertainment
+            <input type="number" id="budgetEntertainment" min="0" step="1" />
+          </label>
+
+          <label>
+            Savings
+            <input type="number" id="budgetSavings" min="0" step="1" />
+          </label>
+
+          <label>
+            Other
+            <input type="number" id="budgetOther" min="0" step="1" />
+          </label>
+
+          <button type="submit">Save Budget Targets</button>
+        </form>
       </section>
 
-      <section class="panel form-panel">
+      <section class="panel panel-4">
         <div class="panel-header">
           <div>
             <h3>Add a Money Ghost</h3>
@@ -168,6 +228,7 @@
           <label>
             Category
             <select id="itemCategory" required>
+              <option value="Income">Income</option>
               <option value="Housing">Housing</option>
               <option value="Food">Food</option>
               <option value="Transportation">Transportation</option>
@@ -175,7 +236,6 @@
               <option value="Healthcare">Healthcare</option>
               <option value="Entertainment">Entertainment</option>
               <option value="Savings">Savings</option>
-              <option value="Income">Income</option>
               <option value="Other">Other</option>
             </select>
           </label>
@@ -185,67 +245,20 @@
             <input type="number" id="itemAmount" placeholder="100" min="0" step="0.01" required />
           </label>
 
+          <label class="checkbox-label">
+            <input type="checkbox" id="itemPaid" checked />
+            Paid
+          </label>
+
           <button type="submit">Add Item</button>
         </form>
       </section>
 
-      <section class="panel data-panel">
+      <section class="panel panel-8">
         <div class="panel-header">
           <div>
-            <section class="panel budget-target-panel">
-  <div class="panel-header">
-    <div>
-      <h3>Budget Spellbook</h3>
-      <p>Edit your planned monthly budget targets</p>
-    </div>
-  </div>
-
-  <form id="budgetTargetForm" class="budget-target-form">
-    <label>
-      Housing
-      <input type="number" id="budgetHousing" min="0" step="1" />
-    </label>
-
-    <label>
-      Food
-      <input type="number" id="budgetFood" min="0" step="1" />
-    </label>
-
-    <label>
-      Transportation
-      <input type="number" id="budgetTransportation" min="0" step="1" />
-    </label>
-
-    <label>
-      Personal
-      <input type="number" id="budgetPersonal" min="0" step="1" />
-    </label>
-
-    <label>
-      Healthcare
-      <input type="number" id="budgetHealthcare" min="0" step="1" />
-    </label>
-
-    <label>
-      Entertainment
-      <input type="number" id="budgetEntertainment" min="0" step="1" />
-    </label>
-
-    <label>
-      Savings
-      <input type="number" id="budgetSavings" min="0" step="1" />
-    </label>
-
-    <label>
-      Other
-      <input type="number" id="budgetOther" min="0" step="1" />
-    </label>
-
-    <button type="submit">Save Budget Targets</button>
-  </form>
-</section>
             <h3>Monthly Items</h3>
-            <p>Edit this section later to connect to local storage or a backend</p>
+            <p>Your entries save automatically in this browser</p>
           </div>
         </div>
 
@@ -255,6 +268,7 @@
             <span>Type</span>
             <span>Category</span>
             <span>Amount</span>
+            <span>Status</span>
             <span></span>
           </div>
 
@@ -263,7 +277,6 @@
       </section>
 
     </main>
-
   </div>
 
   <script src="script.js"></script>
