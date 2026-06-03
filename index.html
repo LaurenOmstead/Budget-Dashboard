@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Boo-get Planner Dashboard</title>
 
   <link rel="stylesheet" href="style.css" />
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
@@ -14,15 +16,17 @@
   <div class="app-shell">
 
     <header class="dashboard-header">
-      <div class="header-text">
+      <div class="header-copy">
         <p class="eyebrow">Cute Monthly Finance Tracker</p>
-        <h1>Boo-get Planner Dashboard</h1>
-        <p class="subtitle">Track income, bills, spending, savings, and all your spooky little money habits.</p>
+        <h1>Boo-get Planner</h1>
+        <p class="subtitle">
+          A spooky-cute dashboard for tracking income, bills, spending, and monthly budget goals.
+        </p>
       </div>
 
-      <div class="header-controls">
-        <div class="month-card">
-          <span>Month</span>
+      <div class="header-panel">
+        <label>
+          Month
           <select id="monthSelect">
             <option>January</option>
             <option>February</option>
@@ -37,93 +41,101 @@
             <option>November</option>
             <option>December</option>
           </select>
-        </div>
+        </label>
 
-        <div class="dashboard-actions">
-          <button type="button" id="printDashboardBtn">Print</button>
-          <button type="button" id="exportCsvBtn">Export CSV</button>
-          <button type="button" id="resetDemoBtn" class="soft-button">Reset</button>
+        <div class="header-actions">
+          <button id="printBtn" type="button">Print</button>
+          <button id="exportBtn" type="button">Export</button>
+          <button id="refreshBtn" type="button" class="light-btn">Refresh</button>
         </div>
       </div>
     </header>
 
+    <section class="status-bar" id="statusBar">
+      Connecting to your budget dashboard...
+    </section>
+
     <main class="dashboard-grid">
 
-      <section class="summary-card">
-        <div class="ghost-icon">👻</div>
+      <section class="stat-card">
+        <div class="stat-icon">👻</div>
         <div>
           <p>Total Income</p>
           <h2 id="totalIncome">$0</h2>
         </div>
       </section>
 
-      <section class="summary-card">
-        <div class="ghost-icon">🕯️</div>
+      <section class="stat-card">
+        <div class="stat-icon">🕯️</div>
         <div>
           <p>Total Expenses</p>
           <h2 id="totalExpenses">$0</h2>
         </div>
       </section>
 
-      <section class="summary-card">
-        <div class="ghost-icon">🧾</div>
+      <section class="stat-card">
+        <div class="stat-icon">🧾</div>
         <div>
-          <p>Bills</p>
-          <h2 id="billsDue">$0</h2>
+          <p>Total Bills</p>
+          <h2 id="totalBills">$0</h2>
         </div>
       </section>
 
-      <section class="summary-card">
-        <div class="ghost-icon">💜</div>
+      <section class="stat-card">
+        <div class="stat-icon">💜</div>
         <div>
-          <p>Available Balance</p>
-          <h2 id="currentBalance">$0</h2>
+          <p>Available</p>
+          <h2 id="availableBalance">$0</h2>
         </div>
       </section>
 
-      <section class="panel chart-panel panel-6">
+      <section class="panel panel-6">
         <div class="panel-header">
           <div>
             <h3>Cashflow Spirits</h3>
             <p>Income, bills, expenses, and balance</p>
           </div>
         </div>
+
         <div class="chart-box">
           <canvas id="cashflowChart"></canvas>
         </div>
       </section>
 
-      <section class="panel chart-panel panel-3">
+      <section class="panel panel-3">
         <div class="panel-header">
           <div>
             <h3>Spending Haunts</h3>
-            <p>Expense breakdown</p>
+            <p>Expense categories</p>
           </div>
         </div>
+
         <div class="chart-box">
           <canvas id="expenseChart"></canvas>
         </div>
       </section>
 
-      <section class="panel chart-panel panel-3">
+      <section class="panel panel-3">
         <div class="panel-header">
           <div>
             <h3>Budget Potion</h3>
-            <p>Allocation summary</p>
+            <p>Budget allocation</p>
           </div>
         </div>
+
         <div class="chart-box">
           <canvas id="allocationChart"></canvas>
         </div>
       </section>
 
-      <section class="panel chart-panel panel-8">
+      <section class="panel panel-8">
         <div class="panel-header">
           <div>
             <h3>Actual vs Budget</h3>
-            <p>Planned spending compared to real spending</p>
+            <p>Compare real spending to your monthly targets</p>
           </div>
         </div>
+
         <div class="chart-box short-chart">
           <canvas id="budgetChart"></canvas>
         </div>
@@ -136,84 +148,22 @@
             <p>Top spending categories</p>
           </div>
         </div>
-        <div class="top-expenses" id="topExpenses"></div>
-      </section>
 
-      <section class="panel panel-4">
-        <div class="panel-header">
-          <div>
-            <h3>Bill Graveyard</h3>
-            <p>Paid and unpaid bills</p>
-          </div>
-        </div>
-        <div class="bill-list" id="billList"></div>
-      </section>
-
-      <section class="panel panel-4">
-        <div class="panel-header">
-          <div>
-            <h3>Budget Spellbook</h3>
-            <p>Edit monthly budget targets</p>
-          </div>
-        </div>
-
-        <form id="budgetTargetForm" class="budget-target-form">
-          <label>
-            Housing
-            <input type="number" id="budgetHousing" min="0" step="1" />
-          </label>
-
-          <label>
-            Food
-            <input type="number" id="budgetFood" min="0" step="1" />
-          </label>
-
-          <label>
-            Transportation
-            <input type="number" id="budgetTransportation" min="0" step="1" />
-          </label>
-
-          <label>
-            Personal
-            <input type="number" id="budgetPersonal" min="0" step="1" />
-          </label>
-
-          <label>
-            Healthcare
-            <input type="number" id="budgetHealthcare" min="0" step="1" />
-          </label>
-
-          <label>
-            Entertainment
-            <input type="number" id="budgetEntertainment" min="0" step="1" />
-          </label>
-
-          <label>
-            Savings
-            <input type="number" id="budgetSavings" min="0" step="1" />
-          </label>
-
-          <label>
-            Other
-            <input type="number" id="budgetOther" min="0" step="1" />
-          </label>
-
-          <button type="submit">Save Budget Targets</button>
-        </form>
+        <div id="topExpenses" class="stack-list"></div>
       </section>
 
       <section class="panel panel-4">
         <div class="panel-header">
           <div>
             <h3>Add a Money Ghost</h3>
-            <p>Add income, expense, or bill items</p>
+            <p>Add income, bills, or expenses</p>
           </div>
         </div>
 
         <form id="transactionForm">
           <label>
             Name
-            <input type="text" id="itemName" placeholder="Rent, paycheck, groceries..." required />
+            <input id="itemName" type="text" placeholder="Paycheck, rent, groceries..." required />
           </label>
 
           <label>
@@ -242,27 +192,91 @@
 
           <label>
             Amount
-            <input type="number" id="itemAmount" placeholder="100" min="0" step="0.01" required />
+            <input id="itemAmount" type="number" min="0" step="0.01" placeholder="100" required />
           </label>
 
-          <label class="checkbox-label">
-            <input type="checkbox" id="itemPaid" checked />
-            Paid
+          <label class="checkbox-row">
+            <input id="itemPaid" type="checkbox" checked />
+            Paid / Received
           </label>
 
           <button type="submit">Add Item</button>
         </form>
       </section>
 
-      <section class="panel panel-8">
+      <section class="panel panel-4">
         <div class="panel-header">
           <div>
-            <h3>Monthly Items</h3>
-            <p>Your entries save automatically in this browser</p>
+            <h3>Budget Spellbook</h3>
+            <p>Monthly budget targets</p>
           </div>
         </div>
 
-        <div class="transaction-table">
+        <form id="targetForm" class="target-form">
+          <label>
+            Housing
+            <input id="targetHousing" type="number" min="0" step="1" />
+          </label>
+
+          <label>
+            Food
+            <input id="targetFood" type="number" min="0" step="1" />
+          </label>
+
+          <label>
+            Transportation
+            <input id="targetTransportation" type="number" min="0" step="1" />
+          </label>
+
+          <label>
+            Personal
+            <input id="targetPersonal" type="number" min="0" step="1" />
+          </label>
+
+          <label>
+            Healthcare
+            <input id="targetHealthcare" type="number" min="0" step="1" />
+          </label>
+
+          <label>
+            Entertainment
+            <input id="targetEntertainment" type="number" min="0" step="1" />
+          </label>
+
+          <label>
+            Savings
+            <input id="targetSavings" type="number" min="0" step="1" />
+          </label>
+
+          <label>
+            Other
+            <input id="targetOther" type="number" min="0" step="1" />
+          </label>
+
+          <button type="submit">Save Targets</button>
+        </form>
+      </section>
+
+      <section class="panel panel-4">
+        <div class="panel-header">
+          <div>
+            <h3>Bill Graveyard</h3>
+            <p>Bills for this month</p>
+          </div>
+        </div>
+
+        <div id="billList" class="stack-list"></div>
+      </section>
+
+      <section class="panel panel-12">
+        <div class="panel-header">
+          <div>
+            <h3>Monthly Items</h3>
+            <p>Saved to Supabase</p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
           <div class="table-row table-head">
             <span>Name</span>
             <span>Type</span>
