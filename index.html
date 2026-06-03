@@ -3,61 +3,95 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <title>Boo-get Planner Dashboard</title>
+  <title>Boodget Planner</title>
 
   <link rel="stylesheet" href="style.css" />
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
   <div class="app-shell">
 
     <header class="dashboard-header">
       <div class="header-copy">
-        <p class="eyebrow">Cute Monthly Finance Tracker</p>
-        <h1>Boo-get Planner</h1>
+        <p class="eyebrow">Spooky Cute Finance Tracker</p>
+        <h1>Boodget Planner</h1>
         <p class="subtitle">
-          A spooky-cute dashboard for tracking income, bills, spending, and monthly budget goals.
+          Track your money with moody colors, little ghosts, and tiny kitties.
         </p>
+
+        <div class="mascot-row">
+          <span class="mascot-pill">👻 Boo Budgeting</span>
+          <span class="mascot-pill">🐈 Kitty Approved</span>
+          <span class="mascot-pill">💸 Weekly / Monthly / Yearly</span>
+        </div>
       </div>
 
       <div class="header-panel">
         <label>
-          Month
-          <select id="monthSelect">
-            <option>January</option>
-            <option>February</option>
-            <option>March</option>
-            <option>April</option>
-            <option>May</option>
-            <option>June</option>
-            <option>July</option>
-            <option>August</option>
-            <option>September</option>
-            <option>October</option>
-            <option>November</option>
-            <option>December</option>
+          View
+          <select id="viewMode">
+            <option value="week">Week</option>
+            <option value="month" selected>Month</option>
+            <option value="year">Year</option>
           </select>
         </label>
 
+        <div id="monthControls" class="scope-controls">
+          <label>
+            Month
+            <select id="monthSelect">
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </label>
+
+          <label>
+            Year
+            <select id="yearSelect"></select>
+          </label>
+        </div>
+
+        <div id="weekControls" class="scope-controls hidden">
+          <label>
+            Week
+            <input id="weekPicker" type="week" />
+          </label>
+        </div>
+
+        <div id="yearControls" class="scope-controls hidden">
+          <label>
+            Year
+            <select id="yearOnlySelect"></select>
+          </label>
+        </div>
+
         <div class="header-actions">
           <button id="printBtn" type="button">Print</button>
-          <button id="exportBtn" type="button">Export</button>
-          <button id="refreshBtn" type="button" class="light-btn">Refresh</button>
+          <button id="exportBtn" type="button">Export CSV</button>
+          <button id="refreshBtn" type="button" class="alt-btn">Refresh</button>
         </div>
       </div>
     </header>
 
-    <section class="status-bar" id="statusBar">
-      Connecting to your budget dashboard...
+    <section id="statusBar" class="status-bar">
+      Loading dashboard...
     </section>
 
     <main class="dashboard-grid">
 
-      <section class="stat-card">
+      <section class="stat-card income-card">
         <div class="stat-icon">👻</div>
         <div>
           <p>Total Income</p>
@@ -65,26 +99,26 @@
         </div>
       </section>
 
-      <section class="stat-card">
-        <div class="stat-icon">🕯️</div>
+      <section class="stat-card expense-card">
+        <div class="stat-icon">🐾</div>
         <div>
           <p>Total Expenses</p>
           <h2 id="totalExpenses">$0</h2>
         </div>
       </section>
 
-      <section class="stat-card">
-        <div class="stat-icon">🧾</div>
+      <section class="stat-card bill-card">
+        <div class="stat-icon">🕯️</div>
         <div>
           <p>Total Bills</p>
           <h2 id="totalBills">$0</h2>
         </div>
       </section>
 
-      <section class="stat-card">
-        <div class="stat-icon">💜</div>
+      <section class="stat-card balance-card">
+        <div class="stat-icon">🐈</div>
         <div>
-          <p>Available</p>
+          <p>Available Balance</p>
           <h2 id="availableBalance">$0</h2>
         </div>
       </section>
@@ -93,10 +127,9 @@
         <div class="panel-header">
           <div>
             <h3>Cashflow Spirits</h3>
-            <p>Income, bills, expenses, and balance</p>
+            <p>Income, bills, spending, and available balance</p>
           </div>
         </div>
-
         <div class="chart-box">
           <canvas id="cashflowChart"></canvas>
         </div>
@@ -106,10 +139,9 @@
         <div class="panel-header">
           <div>
             <h3>Spending Haunts</h3>
-            <p>Expense categories</p>
+            <p>Where the money floated away</p>
           </div>
         </div>
-
         <div class="chart-box">
           <canvas id="expenseChart"></canvas>
         </div>
@@ -119,10 +151,9 @@
         <div class="panel-header">
           <div>
             <h3>Budget Potion</h3>
-            <p>Budget allocation</p>
+            <p>Spending and savings mix</p>
           </div>
         </div>
-
         <div class="chart-box">
           <canvas id="allocationChart"></canvas>
         </div>
@@ -131,11 +162,10 @@
       <section class="panel panel-8">
         <div class="panel-header">
           <div>
-            <h3>Actual vs Budget</h3>
-            <p>Compare real spending to your monthly targets</p>
+            <h3>Actual vs Target</h3>
+            <p id="targetChartNote">Monthly targets compared to actuals</p>
           </div>
         </div>
-
         <div class="chart-box short-chart">
           <canvas id="budgetChart"></canvas>
         </div>
@@ -145,10 +175,9 @@
         <div class="panel-header">
           <div>
             <h3>Highest Haunts</h3>
-            <p>Top spending categories</p>
+            <p>Top categories for this view</p>
           </div>
         </div>
-
         <div id="topExpenses" class="stack-list"></div>
       </section>
 
@@ -156,14 +185,14 @@
         <div class="panel-header">
           <div>
             <h3>Add a Money Ghost</h3>
-            <p>Add income, bills, or expenses</p>
+            <p>Add income, expenses, or bills</p>
           </div>
         </div>
 
         <form id="transactionForm">
           <label>
             Name
-            <input id="itemName" type="text" placeholder="Paycheck, rent, groceries..." required />
+            <input id="itemName" type="text" placeholder="Paycheck, groceries, rent..." required />
           </label>
 
           <label>
@@ -195,6 +224,11 @@
             <input id="itemAmount" type="number" min="0" step="0.01" placeholder="100" required />
           </label>
 
+          <label>
+            Date
+            <input id="itemDate" type="date" required />
+          </label>
+
           <label class="checkbox-row">
             <input id="itemPaid" type="checkbox" checked />
             Paid / Received
@@ -208,7 +242,7 @@
         <div class="panel-header">
           <div>
             <h3>Budget Spellbook</h3>
-            <p>Monthly budget targets</p>
+            <p id="targetNote">Edit the monthly targets for the selected month</p>
           </div>
         </div>
 
@@ -253,7 +287,7 @@
             <input id="targetOther" type="number" min="0" step="1" />
           </label>
 
-          <button type="submit">Save Targets</button>
+          <button id="saveTargetsBtn" type="submit">Save Targets</button>
         </form>
       </section>
 
@@ -261,18 +295,17 @@
         <div class="panel-header">
           <div>
             <h3>Bill Graveyard</h3>
-            <p>Bills for this month</p>
+            <p>Bills in the current view</p>
           </div>
         </div>
-
         <div id="billList" class="stack-list"></div>
       </section>
 
       <section class="panel panel-12">
         <div class="panel-header">
           <div>
-            <h3>Monthly Items</h3>
-            <p>Saved to Supabase</p>
+            <h3>Transactions</h3>
+            <p id="transactionScopeLabel">Transactions in the selected view</p>
           </div>
         </div>
 
@@ -282,6 +315,7 @@
             <span>Type</span>
             <span>Category</span>
             <span>Amount</span>
+            <span>Date</span>
             <span>Status</span>
             <span></span>
           </div>
@@ -295,4 +329,5 @@
 
   <script src="script.js"></script>
 </body>
+</html>
 </html>
