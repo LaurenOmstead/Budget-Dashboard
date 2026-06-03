@@ -1,1 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boo-get Planner Dashboard</title>
 
+  <link rel="stylesheet" href="style.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <header class="dashboard-header">
+      <div>
+        <p class="eyebrow">Cute Monthly Finance Tracker</p>
+        <h1>Boo-get Planner Dashboard</h1>
+        <p class="subtitle">Track your income, bills, spending, savings, and spooky little money habits.</p>
+      </div>
+
+      <div class="month-card">
+        <span>Month</span>
+        <select id="monthSelect">
+          <option>January</option>
+          <option>February</option>
+          <option>March</option>
+          <option>April</option>
+          <option>May</option>
+          <option>June</option>
+          <option>July</option>
+          <option>August</option>
+          <option>September</option>
+          <option>October</option>
+          <option>November</option>
+          <option>December</option>
+        </select>
+      </div>
+    </header>
+
+    <main class="dashboard-grid">
+
+      <section class="summary-card ghost-card">
+        <div class="ghost-icon">👻</div>
+        <div>
+          <p>Total Income</p>
+          <h2 id="totalIncome">$0</h2>
+        </div>
+      </section>
+
+      <section class="summary-card ghost-card">
+        <div class="ghost-icon">🕯️</div>
+        <div>
+          <p>Total Expenses</p>
+          <h2 id="totalExpenses">$0</h2>
+        </div>
+      </section>
+
+      <section class="summary-card ghost-card">
+        <div class="ghost-icon">🧾</div>
+        <div>
+          <p>Bills Due</p>
+          <h2 id="billsDue">$0</h2>
+        </div>
+      </section>
+
+      <section class="summary-card ghost-card balance-card">
+        <div class="ghost-icon">💜</div>
+        <div>
+          <p>Available Balance</p>
+          <h2 id="currentBalance">$0</h2>
+        </div>
+      </section>
+
+      <section class="panel large-panel">
+        <div class="panel-header">
+          <div>
+            <h3>Cashflow Spirits</h3>
+            <p>Income vs expenses</p>
+          </div>
+          <span class="pill">Monthly</span>
+        </div>
+        <canvas id="cashflowChart"></canvas>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h3>Spending Haunts</h3>
+            <p>Where your money floated away</p>
+          </div>
+        </div>
+        <canvas id="expenseChart"></canvas>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h3>Budget Potion</h3>
+            <p>Allocation summary</p>
+          </div>
+        </div>
+        <canvas id="allocationChart"></canvas>
+      </section>
+
+      <section class="panel wide-panel">
+        <div class="panel-header">
+          <div>
+            <h3>Actual vs Budget</h3>
+            <p>Compare planned spending against real spending</p>
+          </div>
+        </div>
+        <canvas id="budgetChart"></canvas>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h3>Bill Graveyard</h3>
+            <p>Paid and unpaid bills</p>
+          </div>
+        </div>
+
+        <div class="bill-list" id="billList"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <h3>Highest Haunts</h3>
+            <p>Top expense categories</p>
+          </div>
+        </div>
+
+        <div class="top-expenses" id="topExpenses"></div>
+      </section>
+
+      <section class="panel form-panel">
+        <div class="panel-header">
+          <div>
+            <h3>Add a Money Ghost</h3>
+            <p>Add income, expense, or bill items</p>
+          </div>
+        </div>
+
+        <form id="transactionForm">
+          <label>
+            Name
+            <input type="text" id="itemName" placeholder="Rent, paycheck, groceries..." required />
+          </label>
+
+          <label>
+            Type
+            <select id="itemType" required>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+              <option value="bill">Bill</option>
+            </select>
+          </label>
+
+          <label>
+            Category
+            <select id="itemCategory" required>
+              <option value="Housing">Housing</option>
+              <option value="Food">Food</option>
+              <option value="Transportation">Transportation</option>
+              <option value="Personal">Personal</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Savings">Savings</option>
+              <option value="Income">Income</option>
+              <option value="Other">Other</option>
+            </select>
+          </label>
+
+          <label>
+            Amount
+            <input type="number" id="itemAmount" placeholder="100" min="0" step="0.01" required />
+          </label>
+
+          <button type="submit">Add Item</button>
+        </form>
+      </section>
+
+      <section class="panel data-panel">
+        <div class="panel-header">
+          <div>
+            <h3>Monthly Items</h3>
+            <p>Edit this section later to connect to local storage or a backend</p>
+          </div>
+        </div>
+
+        <div class="transaction-table">
+          <div class="table-row table-head">
+            <span>Name</span>
+            <span>Type</span>
+            <span>Category</span>
+            <span>Amount</span>
+            <span></span>
+          </div>
+
+          <div id="transactionRows"></div>
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
