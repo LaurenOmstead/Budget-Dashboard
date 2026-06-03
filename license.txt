@@ -1,1 +1,18 @@
+Personal Use License
 
+This digital product is for personal use only.
+
+You may:
+- use the dashboard for your own personal budgeting
+- print your dashboard
+- export your own data
+
+You may not:
+- resell this product
+- redistribute the files
+- share the files publicly
+- upload the source code to public repositories
+- claim the design or code as your own
+- modify and resell this product as a new product
+
+All rights reserved.
