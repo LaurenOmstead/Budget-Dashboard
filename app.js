@@ -1,6 +1,20 @@
+const STORAGE_KEYS = {
+  transactions: "ghostBudgetDashboardTransactions_v2",
+  budgetTargets: "ghostBudgetDashboardTargets_v2",
+  selectedMonth: "ghostBudgetDashboardMonth_v2"
+};
+
+function createId() {
+  if (window.crypto && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return "id-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+}
+
 const starterTransactions = [
   {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: "Paycheck",
     type: "income",
     category: "Income",
@@ -8,7 +22,7 @@ const starterTransactions = [
     paid: true
   },
   {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: "Rent",
     type: "bill",
     category: "Housing",
@@ -16,7 +30,7 @@ const starterTransactions = [
     paid: true
   },
   {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: "Electricity",
     type: "bill",
     category: "Housing",
@@ -24,7 +38,7 @@ const starterTransactions = [
     paid: true
   },
   {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: "Water",
     type: "bill",
     category: "Housing",
@@ -32,7 +46,7 @@ const starterTransactions = [
     paid: true
   },
   {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: "Internet",
     type: "bill",
     category: "Housing",
@@ -40,7 +54,7 @@ const starterTransactions = [
     paid: true
   },
   {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: "Groceries",
     type: "expense",
     category: "Food",
@@ -48,7 +62,7 @@ const starterTransactions = [
     paid: true
   },
   {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: "Gas",
     type: "expense",
     category: "Transportation",
@@ -56,7 +70,7 @@ const starterTransactions = [
     paid: true
   },
   {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: "Personal Care",
     type: "expense",
     category: "Personal",
@@ -64,7 +78,7 @@ const starterTransactions = [
     paid: true
   },
   {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: "Savings",
     type: "expense",
     category: "Savings",
@@ -82,12 +96,6 @@ const starterBudgetTargets = {
   Entertainment: 100,
   Savings: 400,
   Other: 100
-};
-
-const STORAGE_KEYS = {
-  transactions: "ghostBudgetDashboardTransactions",
-  budgetTargets: "ghostBudgetDashboardTargets",
-  selectedMonth: "ghostBudgetDashboardMonth"
 };
 
 let transactions = loadTransactions();
@@ -118,6 +126,7 @@ const itemName = document.getElementById("itemName");
 const itemType = document.getElementById("itemType");
 const itemCategory = document.getElementById("itemCategory");
 const itemAmount = document.getElementById("itemAmount");
+const itemPaid = document.getElementById("itemPaid");
 
 const monthSelect = document.getElementById("monthSelect");
 
@@ -146,7 +155,13 @@ function loadTransactions() {
   }
 
   try {
-    return JSON.parse(savedTransactions);
+    const parsed = JSON.parse(savedTransactions);
+
+    if (!Array.isArray(parsed)) {
+      return starterTransactions;
+    }
+
+    return parsed;
   } catch {
     return starterTransactions;
   }
@@ -175,13 +190,10 @@ function saveBudgetTargets() {
 }
 
 function saveSelectedMonth() {
-  if (!monthSelect) return;
   localStorage.setItem(STORAGE_KEYS.selectedMonth, monthSelect.value);
 }
 
 function loadSelectedMonth() {
-  if (!monthSelect) return;
-
   const savedMonth = localStorage.getItem(STORAGE_KEYS.selectedMonth);
 
   if (savedMonth) {
@@ -192,15 +204,15 @@ function loadSelectedMonth() {
 function getTotals() {
   const income = transactions
     .filter(item => item.type === "income")
-    .reduce((sum, item) => sum + item.amount, 0);
+    .reduce((sum, item) => sum + Number(item.amount), 0);
 
   const expenses = transactions
     .filter(item => item.type === "expense")
-    .reduce((sum, item) => sum + item.amount, 0);
+    .reduce((sum, item) => sum + Number(item.amount), 0);
 
   const bills = transactions
     .filter(item => item.type === "bill")
-    .reduce((sum, item) => sum + item.amount, 0);
+    .reduce((sum, item) => sum + Number(item.amount), 0);
 
   const balance = income - expenses - bills;
 
@@ -217,7 +229,7 @@ function getCategoryTotals() {
         categoryTotals[item.category] = 0;
       }
 
-      categoryTotals[item.category] += item.amount;
+      categoryTotals[item.category] += Number(item.amount);
     });
 
   return categoryTotals;
@@ -290,17 +302,21 @@ function renderTransactionRows() {
 
   transactionRowsEl.innerHTML = transactions
     .map(item => {
+      const statusText = item.paid ? "Paid" : "Unpaid";
+      const statusClass = item.paid ? "paid" : "unpaid";
+
       return `
         <div class="table-row">
           <span>${escapeHTML(item.name)}</span>
           <span>
-            <span class="type-badge type-${item.type}">
+            <span class="type-badge type-${escapeHTML(item.type)}">
               ${escapeHTML(item.type)}
             </span>
           </span>
           <span>${escapeHTML(item.category)}</span>
           <span>${money.format(item.amount)}</span>
-          <button class="delete-btn" onclick="deleteTransaction('${item.id}')">Remove</button>
+          <span class="bill-status ${statusClass}">${statusText}</span>
+          <button class="delete-btn" type="button" data-id="${item.id}">Remove</button>
         </div>
       `;
     })
@@ -309,9 +325,7 @@ function renderTransactionRows() {
 
 function fillBudgetInputs() {
   Object.entries(budgetInputs).forEach(([category, input]) => {
-    if (input) {
-      input.value = budgetTargets[category] || 0;
-    }
+    input.value = budgetTargets[category] || 0;
   });
 }
 
@@ -337,67 +351,6 @@ function createOrUpdateCharts() {
     "#9f91d9"
   ];
 
-  const cashflowData = {
-    labels: ["Income", "Bills", "Expenses", "Balance"],
-    datasets: [
-      {
-        label: "Amount",
-        data: [totals.income, totals.bills, totals.expenses, totals.balance],
-        backgroundColor: ["#7465a8", "#b8a8e8", "#ffd7ef", "#dff8ef"],
-        borderRadius: 12
-      }
-    ]
-  };
-
-  const expenseData = {
-    labels: expenseLabels.length ? expenseLabels : ["No expenses"],
-    datasets: [
-      {
-        data: expenseValues.length ? expenseValues : [1],
-        backgroundColor: chartColors,
-        borderWidth: 0
-      }
-    ]
-  };
-
-  const allocationData = {
-    labels: ["Bills", "Expenses", "Savings", "Available"],
-    datasets: [
-      {
-        data: [
-          totals.bills,
-          totals.expenses,
-          categoryTotals.Savings || 0,
-          Math.max(totals.balance, 0)
-        ],
-        backgroundColor: ["#40375f", "#7465a8", "#b8a8e8", "#dff8ef"],
-        borderWidth: 0
-      }
-    ]
-  };
-
-  const budgetData = {
-    labels: categoryLabels,
-    datasets: [
-      {
-        label: "Actual",
-        data: actualValues,
-        borderColor: "#40375f",
-        backgroundColor: "rgba(64, 55, 95, 0.12)",
-        tension: 0.35,
-        fill: true
-      },
-      {
-        label: "Budget",
-        data: budgetValues,
-        borderColor: "#b8a8e8",
-        backgroundColor: "rgba(184, 168, 232, 0.12)",
-        tension: 0.35,
-        fill: true
-      }
-    ]
-  };
-
   if (cashflowChart) cashflowChart.destroy();
   if (expenseChart) expenseChart.destroy();
   if (allocationChart) allocationChart.destroy();
@@ -405,25 +358,78 @@ function createOrUpdateCharts() {
 
   cashflowChart = new Chart(document.getElementById("cashflowChart"), {
     type: "bar",
-    data: cashflowData,
+    data: {
+      labels: ["Income", "Bills", "Expenses", "Balance"],
+      datasets: [
+        {
+          label: "Amount",
+          data: [totals.income, totals.bills, totals.expenses, totals.balance],
+          backgroundColor: ["#7465a8", "#b8a8e8", "#ffd7ef", "#dff8ef"],
+          borderRadius: 12
+        }
+      ]
+    },
     options: chartOptions()
   });
 
   expenseChart = new Chart(document.getElementById("expenseChart"), {
     type: "doughnut",
-    data: expenseData,
+    data: {
+      labels: expenseLabels.length ? expenseLabels : ["No expenses"],
+      datasets: [
+        {
+          data: expenseValues.length ? expenseValues : [1],
+          backgroundColor: chartColors,
+          borderWidth: 0
+        }
+      ]
+    },
     options: doughnutOptions()
   });
 
   allocationChart = new Chart(document.getElementById("allocationChart"), {
     type: "doughnut",
-    data: allocationData,
+    data: {
+      labels: ["Bills", "Expenses", "Savings", "Available"],
+      datasets: [
+        {
+          data: [
+            totals.bills,
+            totals.expenses,
+            categoryTotals.Savings || 0,
+            Math.max(totals.balance, 0)
+          ],
+          backgroundColor: ["#40375f", "#7465a8", "#b8a8e8", "#dff8ef"],
+          borderWidth: 0
+        }
+      ]
+    },
     options: doughnutOptions()
   });
 
   budgetChart = new Chart(document.getElementById("budgetChart"), {
     type: "line",
-    data: budgetData,
+    data: {
+      labels: categoryLabels,
+      datasets: [
+        {
+          label: "Actual",
+          data: actualValues,
+          borderColor: "#40375f",
+          backgroundColor: "rgba(64, 55, 95, 0.12)",
+          tension: 0.35,
+          fill: true
+        },
+        {
+          label: "Budget",
+          data: budgetValues,
+          borderColor: "#b8a8e8",
+          backgroundColor: "rgba(184, 168, 232, 0.12)",
+          tension: 0.35,
+          fill: true
+        }
+      ]
+    },
     options: chartOptions()
   });
 }
@@ -485,13 +491,9 @@ function doughnutOptions() {
 }
 
 function deleteTransaction(id) {
-  const index = transactions.findIndex(item => item.id === id);
-
-  if (index !== -1) {
-    transactions.splice(index, 1);
-    saveTransactions();
-    updateDashboard();
-  }
+  transactions = transactions.filter(item => item.id !== id);
+  saveTransactions();
+  updateDashboard();
 }
 
 function exportTransactionsToCSV() {
@@ -523,13 +525,13 @@ function exportTransactionsToCSV() {
 }
 
 function resetDemoData() {
-  const confirmed = confirm("Reset this dashboard back to the demo data? This will erase saved entries.");
+  const confirmed = confirm("Reset this dashboard back to demo data? This will erase saved entries.");
 
   if (!confirmed) return;
 
   transactions = starterTransactions.map(item => ({
     ...item,
-    id: crypto.randomUUID()
+    id: createId()
   }));
 
   budgetTargets = { ...starterBudgetTargets };
@@ -553,53 +555,49 @@ transactionForm.addEventListener("submit", event => {
   event.preventDefault();
 
   const newItem = {
-    id: crypto.randomUUID(),
+    id: createId(),
     name: itemName.value.trim(),
     type: itemType.value,
     category: itemCategory.value,
     amount: Number(itemAmount.value),
-    paid: true
+    paid: itemPaid.checked
   };
 
   transactions.push(newItem);
-
   saveTransactions();
+
   transactionForm.reset();
+  itemPaid.checked = true;
+
   updateDashboard();
 });
 
-if (budgetTargetForm) {
-  budgetTargetForm.addEventListener("submit", event => {
-    event.preventDefault();
+transactionRowsEl.addEventListener("click", event => {
+  if (event.target.classList.contains("delete-btn")) {
+    deleteTransaction(event.target.dataset.id);
+  }
+});
 
-    Object.entries(budgetInputs).forEach(([category, input]) => {
-      if (input) {
-        budgetTargets[category] = Number(input.value) || 0;
-      }
-    });
+budgetTargetForm.addEventListener("submit", event => {
+  event.preventDefault();
 
-    saveBudgetTargets();
-    updateDashboard();
+  Object.entries(budgetInputs).forEach(([category, input]) => {
+    budgetTargets[category] = Number(input.value) || 0;
   });
-}
 
-if (monthSelect) {
-  monthSelect.addEventListener("change", saveSelectedMonth);
-}
+  saveBudgetTargets();
+  updateDashboard();
+});
 
-if (printDashboardBtn) {
-  printDashboardBtn.addEventListener("click", () => {
-    window.print();
-  });
-}
+monthSelect.addEventListener("change", saveSelectedMonth);
 
-if (exportCsvBtn) {
-  exportCsvBtn.addEventListener("click", exportTransactionsToCSV);
-}
+printDashboardBtn.addEventListener("click", () => {
+  window.print();
+});
 
-if (resetDemoBtn) {
-  resetDemoBtn.addEventListener("click", resetDemoData);
-}
+exportCsvBtn.addEventListener("click", exportTransactionsToCSV);
+
+resetDemoBtn.addEventListener("click", resetDemoData);
 
 function updateDashboard() {
   updateSummaryCards();
