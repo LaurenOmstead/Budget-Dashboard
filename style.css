@@ -429,3 +429,95 @@ button:hover {
     display: none;
   }
 }
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  z-index: 2;
+}
+
+.dashboard-actions button {
+  background: white;
+  color: var(--purple-dark);
+  box-shadow: none;
+}
+
+.dashboard-actions .soft-button {
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.budget-target-panel {
+  grid-column: span 4;
+}
+
+.budget-target-form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.budget-target-form button {
+  grid-column: span 2;
+}
+
+.empty-message {
+  color: var(--text-muted);
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+@media print {
+  body {
+    background: white;
+  }
+
+  .dashboard-actions,
+  .form-panel,
+  .budget-target-panel,
+  .delete-btn {
+    display: none !important;
+  }
+
+  .app-shell {
+    width: 100%;
+    margin: 0;
+  }
+
+  .dashboard-header,
+  .summary-card,
+  .panel {
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .budget-target-panel {
+    grid-column: span 6;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard-actions {
+    width: 100%;
+  }
+
+  .dashboard-actions button {
+    width: 100%;
+  }
+
+  .budget-target-panel {
+    grid-column: span 12;
+  }
+
+  .budget-target-form {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-target-form button {
+    grid-column: span 1;
+  }
+}
