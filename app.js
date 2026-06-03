@@ -1,7 +1,8 @@
 const SUPABASE_URL = "https://lhbsgjsykcrskjgofiwf.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxoYnNnanN5a2Nyc2tqZ29maXdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1MTE1NTAsImV4cCI6MjA5NjA4NzU1MH0.FSa-4mDdm1EohmUSEmWsv2lJXMxV3DcpKwmgLGLBEOE";
 
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const DEFAULT_TARGETS = {
   Housing: 900,
@@ -17,10 +18,10 @@ const DEFAULT_TARGETS = {
 let transactions = [];
 let targets = { ...DEFAULT_TARGETS };
 
-let cashflowChart;
-let expenseChart;
-let allocationChart;
-let budgetChart;
+let cashflowChart = null;
+let expenseChart = null;
+let allocationChart = null;
+let budgetChart = null;
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -29,7 +30,6 @@ const money = new Intl.NumberFormat("en-US", {
 });
 
 const statusBar = document.getElementById("statusBar");
-
 const monthSelect = document.getElementById("monthSelect");
 
 const totalIncomeEl = document.getElementById("totalIncome");
@@ -65,9 +65,26 @@ const printBtn = document.getElementById("printBtn");
 const exportBtn = document.getElementById("exportBtn");
 const refreshBtn = document.getElementById("refreshBtn");
 
-document.addEventListener("DOMContentLoaded", initDashboard);
+startApp();
 
-async function initDashboard() {
+async function startApp() {
+  console.log("script.js is running");
+
+  if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_ANON_KEY.includes("PASTE_")) {
+    showStatus("Supabase URL or anon key is missing in script.js.", "error");
+    alert("Supabase URL or anon key is missing in script.js.");
+    return;
+  }
+
+  const missingElements = checkRequiredElements();
+
+  if (missingElements.length > 0) {
+    const message = "Missing HTML elements: " + missingElements.join(", ");
+    showStatus(message, "error");
+    alert(message);
+    return;
+  }
+
   const savedMonth = localStorage.getItem("ghostBudgetSelectedMonth");
 
   if (savedMonth) {
@@ -75,23 +92,63 @@ async function initDashboard() {
   }
 
   bindEvents();
+
   await loadEverything();
 }
 
+function checkRequiredElements() {
+  const required = {
+    statusBar,
+    monthSelect,
+    totalIncomeEl,
+    totalExpensesEl,
+    totalBillsEl,
+    availableBalanceEl,
+    transactionForm,
+    itemName,
+    itemType,
+    itemCategory,
+    itemAmount,
+    itemPaid,
+    targetForm,
+    transactionRows,
+    topExpenses,
+    billList,
+    printBtn,
+    exportBtn,
+    refreshBtn
+  };
+
+  const missing = [];
+
+  Object.entries(required).forEach(([name, element]) => {
+    if (!element) {
+      missing.push(name);
+    }
+  });
+
+  Object.entries(targetInputs).forEach(([name, element]) => {
+    if (!element) {
+      missing.push("target" + name);
+    }
+  });
+
+  return missing;
+}
+
 function bindEvents() {
+  transactionForm.addEventListener("submit", addTransaction);
+
+  targetForm.addEventListener("submit", saveTargets);
+
   monthSelect.addEventListener("change", async () => {
     localStorage.setItem("ghostBudgetSelectedMonth", monthSelect.value);
     await loadEverything();
   });
 
-  transactionForm.addEventListener("submit", addTransaction);
-
-  targetForm.addEventListener("submit", saveTargets);
-
   transactionRows.addEventListener("click", async event => {
     if (event.target.classList.contains("delete-btn")) {
-      const id = event.target.dataset.id;
-      await deleteTransaction(id);
+      await deleteTransaction(event.target.dataset.id);
     }
   });
 
@@ -101,7 +158,9 @@ function bindEvents() {
 
   exportBtn.addEventListener("click", exportCSV);
 
-  refreshBtn.addEventListener("click", loadEverything);
+  refreshBtn.addEventListener("click", async () => {
+    await loadEverything();
+  });
 
   itemType.addEventListener("change", () => {
     if (itemType.value === "income") {
@@ -118,11 +177,9 @@ async function loadEverything() {
 
   renderEverything();
 
-  showStatus("Dashboard updated and connected to Supabase.", "success");
+  showStatus("Dashboard loaded.", "success");
 
-  setTimeout(() => {
-    hideStatus();
-  }, 2500);
+  setTimeout(hideStatus, 1800);
 }
 
 async function loadTransactions() {
@@ -135,12 +192,14 @@ async function loadTransactions() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    showStatus(`Could not load transactions: ${error.message}`, "error");
-    console.error(error);
+    console.error("Load transactions error:", error);
+    showStatus("Could not load transactions: " + error.message, "error");
+    alert("Could not load transactions: " + error.message);
     return;
   }
 
   transactions = data || [];
+  console.log("Loaded transactions:", transactions);
 }
 
 async function loadTargets() {
@@ -152,8 +211,8 @@ async function loadTargets() {
     .eq("item_month", selectedMonth);
 
   if (error) {
-    showStatus(`Could not load budget targets: ${error.message}`, "error");
-    console.error(error);
+    console.error("Load targets error:", error);
+    showStatus("Could not load targets: " + error.message, "error");
     targets = { ...DEFAULT_TARGETS };
     fillTargetInputs();
     return;
@@ -174,7 +233,7 @@ async function loadTargets() {
 
 async function createDefaultTargetsForMonth(selectedMonth) {
   const rows = Object.entries(DEFAULT_TARGETS).map(([category, amount]) => ({
-    category: category,
+    category,
     target_amount: amount,
     item_month: selectedMonth
   }));
@@ -184,34 +243,26 @@ async function createDefaultTargetsForMonth(selectedMonth) {
     .insert(rows);
 
   if (error) {
-    console.error(error);
+    console.error("Create default targets error:", error);
   }
 }
 
 async function addTransaction(event) {
   event.preventDefault();
 
+  console.log("Add Item clicked");
+
   const selectedMonth = monthSelect.value;
   const type = itemType.value;
   const amount = Number(itemAmount.value);
 
   if (!itemName.value.trim()) {
-    showStatus("Please enter an item name.", "error");
-    return;
-  }
-
-  if (!type) {
-    showStatus("Please choose a type.", "error");
-    return;
-  }
-
-  if (!itemCategory.value) {
-    showStatus("Please choose a category.", "error");
+    alert("Please enter an item name.");
     return;
   }
 
   if (!amount || amount <= 0) {
-    showStatus("Please enter an amount greater than zero.", "error");
+    alert("Please enter an amount greater than zero.");
     return;
   }
 
@@ -224,6 +275,7 @@ async function addTransaction(event) {
     item_month: selectedMonth
   };
 
+  console.log("Trying to save:", newItem);
   showStatus("Saving item...", "success");
 
   const { data, error } = await db
@@ -232,38 +284,43 @@ async function addTransaction(event) {
     .select();
 
   if (error) {
-    showStatus(`Could not save item: ${error.message}`, "error");
-    console.error(error);
+    console.error("Insert error:", error);
+    showStatus("Could not save item: " + error.message, "error");
+    alert("Could not save item: " + error.message);
     return;
   }
 
-  if (data && data.length > 0) {
-    transactions.unshift(data[0]);
+  console.log("Saved item:", data);
+
+  if (!data || data.length === 0) {
+    alert("Supabase did not return the saved item. Check table permissions/RLS policies.");
+    await loadEverything();
+    return;
   }
+
+  transactions.unshift(data[0]);
 
   transactionForm.reset();
   itemPaid.checked = true;
+  itemCategory.value = "Income";
 
   renderEverything();
 
   showStatus("Item saved and dashboard updated.", "success");
 
-  setTimeout(() => {
-    hideStatus();
-  }, 2500);
+  setTimeout(hideStatus, 2000);
 }
 
 async function deleteTransaction(id) {
-  showStatus("Deleting item...", "success");
-
   const { error } = await db
     .from("budget_transactions")
     .delete()
     .eq("id", id);
 
   if (error) {
-    showStatus(`Could not delete item: ${error.message}`, "error");
-    console.error(error);
+    console.error("Delete error:", error);
+    showStatus("Could not delete item: " + error.message, "error");
+    alert("Could not delete item: " + error.message);
     return;
   }
 
@@ -272,10 +329,7 @@ async function deleteTransaction(id) {
   renderEverything();
 
   showStatus("Item deleted.", "success");
-
-  setTimeout(() => {
-    hideStatus();
-  }, 2000);
+  setTimeout(hideStatus, 1600);
 }
 
 async function saveTargets(event) {
@@ -284,12 +338,10 @@ async function saveTargets(event) {
   const selectedMonth = monthSelect.value;
 
   const rows = Object.entries(targetInputs).map(([category, input]) => ({
-    category: category,
+    category,
     target_amount: Number(input.value) || 0,
     item_month: selectedMonth
   }));
-
-  showStatus("Saving budget targets...", "success");
 
   const { error } = await db
     .from("budget_targets")
@@ -298,8 +350,9 @@ async function saveTargets(event) {
     });
 
   if (error) {
-    showStatus(`Could not save targets: ${error.message}`, "error");
-    console.error(error);
+    console.error("Save targets error:", error);
+    showStatus("Could not save targets: " + error.message, "error");
+    alert("Could not save targets: " + error.message);
     return;
   }
 
@@ -310,18 +363,22 @@ async function saveTargets(event) {
   renderEverything();
 
   showStatus("Budget targets saved.", "success");
-
-  setTimeout(() => {
-    hideStatus();
-  }, 2500);
+  setTimeout(hideStatus, 2000);
 }
 
 function renderEverything() {
+  console.log("Rendering dashboard with transactions:", transactions);
+
   renderSummary();
   renderTransactions();
   renderBills();
   renderTopExpenses();
-  renderCharts();
+
+  if (window.Chart) {
+    renderCharts();
+  } else {
+    console.warn("Chart.js is not loaded, skipping charts.");
+  }
 }
 
 function getTotals() {
@@ -379,6 +436,8 @@ function renderSummary() {
   totalExpensesEl.textContent = money.format(totals.expenses);
   totalBillsEl.textContent = money.format(totals.bills);
   availableBalanceEl.textContent = money.format(totals.balance);
+
+  console.log("Totals:", totals);
 }
 
 function renderTransactions() {
@@ -426,9 +485,7 @@ function renderBills() {
           <div class="list-title">${escapeHTML(item.item_name)}</div>
           <div class="list-sub">${escapeHTML(item.category)}</div>
         </div>
-        <div>
-          <strong>${money.format(Number(item.amount) || 0)}</strong>
-        </div>
+        <strong>${money.format(Number(item.amount) || 0)}</strong>
       </div>
     `;
   }).join("");
@@ -436,6 +493,7 @@ function renderBills() {
 
 function renderTopExpenses() {
   const categoryTotals = getCategoryTotals();
+
   const rows = Object.entries(categoryTotals)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6);
@@ -638,6 +696,7 @@ function exportCSV() {
   }
 
   const headers = ["Name", "Type", "Category", "Amount", "Paid", "Month"];
+
   const rows = transactions.map(item => [
     item.item_name,
     item.item_type,
