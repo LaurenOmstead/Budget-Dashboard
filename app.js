@@ -1,4 +1,4 @@
-const transactions = [
+const starterTransactions = [
   {
     id: crypto.randomUUID(),
     name: "Paycheck",
@@ -73,7 +73,7 @@ const transactions = [
   }
 ];
 
-const budgetTargets = {
+const starterBudgetTargets = {
   Housing: 900,
   Food: 350,
   Transportation: 250,
@@ -83,6 +83,15 @@ const budgetTargets = {
   Savings: 400,
   Other: 100
 };
+
+const STORAGE_KEYS = {
+  transactions: "ghostBudgetDashboardTransactions",
+  budgetTargets: "ghostBudgetDashboardTargets",
+  selectedMonth: "ghostBudgetDashboardMonth"
+};
+
+let transactions = loadTransactions();
+let budgetTargets = loadBudgetTargets();
 
 let cashflowChart;
 let expenseChart;
@@ -109,6 +118,76 @@ const itemName = document.getElementById("itemName");
 const itemType = document.getElementById("itemType");
 const itemCategory = document.getElementById("itemCategory");
 const itemAmount = document.getElementById("itemAmount");
+
+const monthSelect = document.getElementById("monthSelect");
+
+const printDashboardBtn = document.getElementById("printDashboardBtn");
+const exportCsvBtn = document.getElementById("exportCsvBtn");
+const resetDemoBtn = document.getElementById("resetDemoBtn");
+
+const budgetTargetForm = document.getElementById("budgetTargetForm");
+
+const budgetInputs = {
+  Housing: document.getElementById("budgetHousing"),
+  Food: document.getElementById("budgetFood"),
+  Transportation: document.getElementById("budgetTransportation"),
+  Personal: document.getElementById("budgetPersonal"),
+  Healthcare: document.getElementById("budgetHealthcare"),
+  Entertainment: document.getElementById("budgetEntertainment"),
+  Savings: document.getElementById("budgetSavings"),
+  Other: document.getElementById("budgetOther")
+};
+
+function loadTransactions() {
+  const savedTransactions = localStorage.getItem(STORAGE_KEYS.transactions);
+
+  if (!savedTransactions) {
+    return starterTransactions;
+  }
+
+  try {
+    return JSON.parse(savedTransactions);
+  } catch {
+    return starterTransactions;
+  }
+}
+
+function loadBudgetTargets() {
+  const savedTargets = localStorage.getItem(STORAGE_KEYS.budgetTargets);
+
+  if (!savedTargets) {
+    return starterBudgetTargets;
+  }
+
+  try {
+    return JSON.parse(savedTargets);
+  } catch {
+    return starterBudgetTargets;
+  }
+}
+
+function saveTransactions() {
+  localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify(transactions));
+}
+
+function saveBudgetTargets() {
+  localStorage.setItem(STORAGE_KEYS.budgetTargets, JSON.stringify(budgetTargets));
+}
+
+function saveSelectedMonth() {
+  if (!monthSelect) return;
+  localStorage.setItem(STORAGE_KEYS.selectedMonth, monthSelect.value);
+}
+
+function loadSelectedMonth() {
+  if (!monthSelect) return;
+
+  const savedMonth = localStorage.getItem(STORAGE_KEYS.selectedMonth);
+
+  if (savedMonth) {
+    monthSelect.value = savedMonth;
+  }
+}
 
 function getTotals() {
   const income = transactions
@@ -169,7 +248,7 @@ function renderBills() {
       return `
         <div class="bill-item">
           <div>
-            <div class="bill-name">${bill.name}</div>
+            <div class="bill-name">${escapeHTML(bill.name)}</div>
             <div>${money.format(bill.amount)}</div>
           </div>
           <span class="bill-status ${statusClass}">${statusText}</span>
@@ -195,7 +274,7 @@ function renderTopExpenses() {
     .map(([category, amount]) => {
       return `
         <div class="expense-item">
-          <span class="expense-name">${category}</span>
+          <span class="expense-name">${escapeHTML(category)}</span>
           <strong>${money.format(amount)}</strong>
         </div>
       `;
@@ -213,19 +292,27 @@ function renderTransactionRows() {
     .map(item => {
       return `
         <div class="table-row">
-          <span>${item.name}</span>
+          <span>${escapeHTML(item.name)}</span>
           <span>
             <span class="type-badge type-${item.type}">
-              ${item.type}
+              ${escapeHTML(item.type)}
             </span>
           </span>
-          <span>${item.category}</span>
+          <span>${escapeHTML(item.category)}</span>
           <span>${money.format(item.amount)}</span>
           <button class="delete-btn" onclick="deleteTransaction('${item.id}')">Remove</button>
         </div>
       `;
     })
     .join("");
+}
+
+function fillBudgetInputs() {
+  Object.entries(budgetInputs).forEach(([category, input]) => {
+    if (input) {
+      input.value = budgetTargets[category] || 0;
+    }
+  });
 }
 
 function createOrUpdateCharts() {
@@ -402,8 +489,64 @@ function deleteTransaction(id) {
 
   if (index !== -1) {
     transactions.splice(index, 1);
+    saveTransactions();
     updateDashboard();
   }
+}
+
+function exportTransactionsToCSV() {
+  const headers = ["Name", "Type", "Category", "Amount", "Paid"];
+  const rows = transactions.map(item => [
+    item.name,
+    item.type,
+    item.category,
+    item.amount,
+    item.paid ? "Yes" : "No"
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(","))
+    .join("\n");
+
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;"
+  });
+
+  const url = URL.createObjectURL(blob);
+  const downloadLink = document.createElement("a");
+
+  downloadLink.href = url;
+  downloadLink.download = "ghost-budget-dashboard.csv";
+  downloadLink.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function resetDemoData() {
+  const confirmed = confirm("Reset this dashboard back to the demo data? This will erase saved entries.");
+
+  if (!confirmed) return;
+
+  transactions = starterTransactions.map(item => ({
+    ...item,
+    id: crypto.randomUUID()
+  }));
+
+  budgetTargets = { ...starterBudgetTargets };
+
+  saveTransactions();
+  saveBudgetTargets();
+  fillBudgetInputs();
+  updateDashboard();
+}
+
+function escapeHTML(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 transactionForm.addEventListener("submit", event => {
@@ -420,9 +563,43 @@ transactionForm.addEventListener("submit", event => {
 
   transactions.push(newItem);
 
+  saveTransactions();
   transactionForm.reset();
   updateDashboard();
 });
+
+if (budgetTargetForm) {
+  budgetTargetForm.addEventListener("submit", event => {
+    event.preventDefault();
+
+    Object.entries(budgetInputs).forEach(([category, input]) => {
+      if (input) {
+        budgetTargets[category] = Number(input.value) || 0;
+      }
+    });
+
+    saveBudgetTargets();
+    updateDashboard();
+  });
+}
+
+if (monthSelect) {
+  monthSelect.addEventListener("change", saveSelectedMonth);
+}
+
+if (printDashboardBtn) {
+  printDashboardBtn.addEventListener("click", () => {
+    window.print();
+  });
+}
+
+if (exportCsvBtn) {
+  exportCsvBtn.addEventListener("click", exportTransactionsToCSV);
+}
+
+if (resetDemoBtn) {
+  resetDemoBtn.addEventListener("click", resetDemoData);
+}
 
 function updateDashboard() {
   updateSummaryCards();
@@ -432,4 +609,6 @@ function updateDashboard() {
   createOrUpdateCharts();
 }
 
+loadSelectedMonth();
+fillBudgetInputs();
 updateDashboard();
