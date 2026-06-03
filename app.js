@@ -1,7 +1,7 @@
 const STORAGE_KEYS = {
-  transactions: "ghostBudgetDashboardTransactions_v2",
-  budgetTargets: "ghostBudgetDashboardTargets_v2",
-  selectedMonth: "ghostBudgetDashboardMonth_v2"
+  transactions: "ghostBudgetDashboardTransactions_v3",
+  budgetTargets: "ghostBudgetDashboardTargets_v3",
+  selectedMonth: "ghostBudgetDashboardMonth_v3"
 };
 
 function createId() {
@@ -31,30 +31,6 @@ const starterTransactions = [
   },
   {
     id: createId(),
-    name: "Electricity",
-    type: "bill",
-    category: "Housing",
-    amount: 85,
-    paid: true
-  },
-  {
-    id: createId(),
-    name: "Water",
-    type: "bill",
-    category: "Housing",
-    amount: 120,
-    paid: true
-  },
-  {
-    id: createId(),
-    name: "Internet",
-    type: "bill",
-    category: "Housing",
-    amount: 80,
-    paid: true
-  },
-  {
-    id: createId(),
     name: "Groceries",
     type: "expense",
     category: "Food",
@@ -67,14 +43,6 @@ const starterTransactions = [
     type: "expense",
     category: "Transportation",
     amount: 150,
-    paid: true
-  },
-  {
-    id: createId(),
-    name: "Personal Care",
-    type: "expense",
-    category: "Personal",
-    amount: 97,
     paid: true
   },
   {
@@ -151,19 +119,19 @@ function loadTransactions() {
   const savedTransactions = localStorage.getItem(STORAGE_KEYS.transactions);
 
   if (!savedTransactions) {
-    return starterTransactions;
+    return [...starterTransactions];
   }
 
   try {
     const parsed = JSON.parse(savedTransactions);
 
     if (!Array.isArray(parsed)) {
-      return starterTransactions;
+      return [...starterTransactions];
     }
 
     return parsed;
   } catch {
-    return starterTransactions;
+    return [...starterTransactions];
   }
 }
 
@@ -171,13 +139,13 @@ function loadBudgetTargets() {
   const savedTargets = localStorage.getItem(STORAGE_KEYS.budgetTargets);
 
   if (!savedTargets) {
-    return starterBudgetTargets;
+    return { ...starterBudgetTargets };
   }
 
   try {
     return JSON.parse(savedTargets);
   } catch {
-    return starterBudgetTargets;
+    return { ...starterBudgetTargets };
   }
 }
 
@@ -202,17 +170,25 @@ function loadSelectedMonth() {
 }
 
 function getTotals() {
-  const income = transactions
-    .filter(item => item.type === "income")
-    .reduce((sum, item) => sum + Number(item.amount), 0);
+  let income = 0;
+  let expenses = 0;
+  let bills = 0;
 
-  const expenses = transactions
-    .filter(item => item.type === "expense")
-    .reduce((sum, item) => sum + Number(item.amount), 0);
+  transactions.forEach(item => {
+    const amount = Number(item.amount) || 0;
 
-  const bills = transactions
-    .filter(item => item.type === "bill")
-    .reduce((sum, item) => sum + Number(item.amount), 0);
+    if (item.type === "income") {
+      income += amount;
+    }
+
+    if (item.type === "expense") {
+      expenses += amount;
+    }
+
+    if (item.type === "bill") {
+      bills += amount;
+    }
+  });
 
   const balance = income - expenses - bills;
 
@@ -222,15 +198,17 @@ function getTotals() {
 function getCategoryTotals() {
   const categoryTotals = {};
 
-  transactions
-    .filter(item => item.type === "expense" || item.type === "bill")
-    .forEach(item => {
+  transactions.forEach(item => {
+    const amount = Number(item.amount) || 0;
+
+    if (item.type === "expense" || item.type === "bill") {
       if (!categoryTotals[item.category]) {
         categoryTotals[item.category] = 0;
       }
 
-      categoryTotals[item.category] += Number(item.amount);
-    });
+      categoryTotals[item.category] += amount;
+    }
+  });
 
   return categoryTotals;
 }
@@ -261,7 +239,7 @@ function renderBills() {
         <div class="bill-item">
           <div>
             <div class="bill-name">${escapeHTML(bill.name)}</div>
-            <div>${money.format(bill.amount)}</div>
+            <div>${money.format(Number(bill.amount) || 0)}</div>
           </div>
           <span class="bill-status ${statusClass}">${statusText}</span>
         </div>
@@ -302,8 +280,13 @@ function renderTransactionRows() {
 
   transactionRowsEl.innerHTML = transactions
     .map(item => {
-      const statusText = item.paid ? "Paid" : "Unpaid";
-      const statusClass = item.paid ? "paid" : "unpaid";
+      let statusText = item.paid ? "Paid" : "Unpaid";
+      let statusClass = item.paid ? "paid" : "unpaid";
+
+      if (item.type === "income") {
+        statusText = "Received";
+        statusClass = "paid";
+      }
 
       return `
         <div class="table-row">
@@ -314,7 +297,7 @@ function renderTransactionRows() {
             </span>
           </span>
           <span>${escapeHTML(item.category)}</span>
-          <span>${money.format(item.amount)}</span>
+          <span>${money.format(Number(item.amount) || 0)}</span>
           <span class="bill-status ${statusClass}">${statusText}</span>
           <button class="delete-btn" type="button" data-id="${item.id}">Remove</button>
         </div>
@@ -325,7 +308,9 @@ function renderTransactionRows() {
 
 function fillBudgetInputs() {
   Object.entries(budgetInputs).forEach(([category, input]) => {
-    input.value = budgetTargets[category] || 0;
+    if (input) {
+      input.value = budgetTargets[category] || 0;
+    }
   });
 }
 
@@ -363,7 +348,12 @@ function createOrUpdateCharts() {
       datasets: [
         {
           label: "Amount",
-          data: [totals.income, totals.bills, totals.expenses, totals.balance],
+          data: [
+            totals.income,
+            totals.bills,
+            totals.expenses,
+            totals.balance
+          ],
           backgroundColor: ["#7465a8", "#b8a8e8", "#ffd7ef", "#dff8ef"],
           borderRadius: 12
         }
@@ -438,6 +428,7 @@ function chartOptions() {
   return {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false,
     plugins: {
       legend: {
         labels: {
@@ -473,6 +464,7 @@ function doughnutOptions() {
   return {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false,
     cutout: "68%",
     plugins: {
       legend: {
@@ -488,6 +480,37 @@ function doughnutOptions() {
       }
     }
   };
+}
+
+function addTransaction(event) {
+  event.preventDefault();
+
+  const name = itemName.value.trim();
+  const type = itemType.value;
+  const category = itemCategory.value;
+  const amount = Number(itemAmount.value);
+
+  if (!name || !type || !category || isNaN(amount) || amount <= 0) {
+    alert("Please enter a name, type, category, and amount.");
+    return;
+  }
+
+  const newItem = {
+    id: createId(),
+    name: name,
+    type: type,
+    category: type === "income" ? "Income" : category,
+    amount: amount,
+    paid: type === "income" ? true : itemPaid.checked
+  };
+
+  transactions.push(newItem);
+  saveTransactions();
+
+  transactionForm.reset();
+  itemPaid.checked = true;
+
+  updateDashboard();
 }
 
 function deleteTransaction(id) {
@@ -551,26 +574,7 @@ function escapeHTML(value) {
     .replaceAll("'", "&#039;");
 }
 
-transactionForm.addEventListener("submit", event => {
-  event.preventDefault();
-
-  const newItem = {
-    id: createId(),
-    name: itemName.value.trim(),
-    type: itemType.value,
-    category: itemCategory.value,
-    amount: Number(itemAmount.value),
-    paid: itemPaid.checked
-  };
-
-  transactions.push(newItem);
-  saveTransactions();
-
-  transactionForm.reset();
-  itemPaid.checked = true;
-
-  updateDashboard();
-});
+transactionForm.addEventListener("submit", addTransaction);
 
 transactionRowsEl.addEventListener("click", event => {
   if (event.target.classList.contains("delete-btn")) {
@@ -587,6 +591,14 @@ budgetTargetForm.addEventListener("submit", event => {
 
   saveBudgetTargets();
   updateDashboard();
+});
+
+Object.entries(budgetInputs).forEach(([category, input]) => {
+  input.addEventListener("input", () => {
+    budgetTargets[category] = Number(input.value) || 0;
+    saveBudgetTargets();
+    updateDashboard();
+  });
 });
 
 monthSelect.addEventListener("change", saveSelectedMonth);
